@@ -169,7 +169,7 @@ class Georadii:
 			imgsum[latgidx[iy, ix], longidx[iy, ix], :] += latlon_class.img['data'][iy, ix, :]  # add image values into the corresponding grid
 		imgout = np.zeros_like(imgsum)
 		for ich in range(latlon_class.img['data'].shape[2]):
-			imgout[:, :, ich] = imgsum[:, :, ich]/np.float_(ncount)                             # divide by the number of pixels to average the image values
+			imgout[:, :, ich] = imgsum[:, :, ich]/np.float64(ncount)                             # divide by the number of pixels to average the image values
 		return lon_xx, lat_yy, imgout, ncount
 
 
