@@ -1,7 +1,5 @@
 # Georadii (Geolocation and Radiometric Conversion Toolkit for Airborne Imagery)
 
-# Getting started
-
 ## Installation
 
 First, clone this repository:
@@ -35,5 +33,12 @@ You can run the bash file to install all the required packages:
 bash install_packages.sh
 ```
 
+Now you can install the package:
+```bash
+python3 -m pip install .
+```
+
 ## Usage
+Please refer to the example code.
+
 
