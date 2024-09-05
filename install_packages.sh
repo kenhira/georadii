@@ -24,4 +24,4 @@ python -m pip install pysolar
 echo "Let's install Open CV (pip)..."
 python -m pip install opencv-python
 
-echo "Done!"
+echo "Required packages have been installed."
