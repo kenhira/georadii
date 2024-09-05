@@ -11,10 +11,13 @@ if __name__ == "__main__":
 		print(f"Arguments received: {sys.argv[1:]}")
 		filename = sys.argv[1]
 		savename = sys.argv[2]
+
+		# Extract the image data from .fits file
 		img, header  = read_fits(filename)
 		print('header:')
 		print(header)
 
+		# Plot the image
 		fig = plt.figure(figsize=(12, 9))
 		ax = fig.add_subplot(111)
 		ax.imshow(factor*img/img.max())
