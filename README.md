@@ -1,8 +1,8 @@
-# Georadii (Geolocation and Radiometric conversion toolkit for Airborne Imagery)
+# Georadii (Geolocation and Radiometric Conversion Toolkit for Airborne Imagery)
 
-## Getting started
+# Getting started
 
-# Installation
+## Installation
 
 First, clone this repository:
 ```bash
@@ -35,5 +35,5 @@ You can run the bash file to install all the required packages:
 bash install_packages.sh
 ```
 
-# Usage
+## Usage
 
