@@ -3,10 +3,12 @@
 
 # Python-related files
 __pycache__
+*.pyc
 
 # Build-related file
 *.egg-info
 build
+dist
 
 # Old files
 data/
@@ -15,3 +17,6 @@ obsolete/
 # Output files
 out_*
 *.png
+
+# Test files
+test_*
