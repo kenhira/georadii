@@ -250,7 +250,7 @@ class Camera_arcsix:
 		else:
 			path = location
 		yyyy, mm, dd = self.date.split('-')
-		hsk_fname = 'ARCSIX-HSK_P3B_%s%s%s_v0.h5' % (yyyy, mm, dd)
+		hsk_fname = 'ARCSIX-HSK_P3B_%s%s%s_*.h5' % (yyyy, mm, dd)
 		hsk_path = os.path.join(path, hsk_fname)
 		hsk_files  = glob.glob(hsk_path)
 		if len(hsk_files) == 0:
