@@ -16,6 +16,11 @@ if __name__ == "__main__":
     start_time = '13:08:48'
     end_time   = '13:08:55'
 
+    # Make the directpry to save the output pngs, if non-existent
+    dirname = 'out_gridding'
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
+
     # Instantiate the camera toolkit for the specified date
     camtool = Camera_arcsix(date)
 
@@ -72,10 +77,7 @@ if __name__ == "__main__":
     g1.xlocator = FixedLocator(np.arange(-180, 180.1, 0.2*10.**(np.round(np.log10(np.abs(xmax - xmin))))))
     g1.ylocator = FixedLocator(np.arange(-90.0, 89.9, 0.2*10.**(np.round(np.log10(np.abs(ymax - ymin))))))
 
-    # PNG file output
-    dirname = 'out_gridding'
-    if not os.path.exists(dirname):
-        os.makedirs(dirname)
+    # Save the output png
     fnum = 1
     fn_out = '%s/%04d.png' % (dirname, fnum)
     while os.path.exists(fn_out):
