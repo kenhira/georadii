@@ -10,6 +10,10 @@ This directory contains example codes for using the Georadii package for AVIRIS 
 To run `gridding_aviris.py`, you need the H5 file containing 3 channel AVIRIS data, which can be generated using `open_aviris.py`.
 
 ### Running `open_aviris.py`
+Running this program requires an additional module called [Spectral Python](https://www.spectralpython.net/index.html) `spectral`. You can install this package using `pip`.
+```bash
+python3 -m pip install spectral
+```
 Before starting, make sure that you have sufficient storage in your computer. The raw AVIRIS can be as big as a few TBs. 
  1. Go to `https://popo.jpl.nasa.gov/mmgis-aviris/?s=ujooa` and locate the flight segment that you are interested in.
  2. Find the "Radiance Download Link" of the segment of interest.
