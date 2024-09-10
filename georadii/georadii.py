@@ -7,6 +7,8 @@ import h5py
 import pysolar
 from astropy.io import fits
 from pyproj import Geod as geod
+import multiprocessing as mp
+# import concurrent.futures
 
 class Georadii:
 	def __init__(	self,
@@ -95,7 +97,7 @@ class Georadii:
 		self.latlon_data = self.LatLon(cam_class.img, latlon_meta)
 		return latlon_meta['longeo'], latlon_meta['latgeo']
 		
-	def gridded(self, gridmeta=None):
+	def gridded(self, gridmeta=None, enable_mp=False): # Note: multiprocessing is currently slow
 		latlon_class = self.latlon_data
 		if gridmeta is None:
 			grid_meta = {}
@@ -149,28 +151,48 @@ class Georadii:
 			longidx = np.int_((latlon_class.longeo - lonmin + 0.5*dlon)//dlon % len(lon_arr))
 			latgidx = np.int_((latlon_class.latgeo - latmin + 0.5*dlat)//dlat % len(lat_arr))
 		
-		# dimension and index of the un-gridded image
-		ny, nx = latlon_class.longeo.shape
-		ixx, iyy = np.meshgrid(np.arange(nx), np.arange(ny))
-		if latlon_class.valid_domain is not None:
-			ixx_incl = ixx[np.where(latlon_class.valid_domain)]
-			iyy_incl = iyy[np.where(latlon_class.valid_domain)]
+		# dimension of the gridded map
+		grid_dim = (lon_xx.shape[0], lon_xx.shape[1], latlon_class.img['data'].shape[2])
+		if enable_mp:
+			nproc = 8
+			if latlon_class.valid_domain is not None:
+				x1, x2 = np.meshgrid(np.arange(latgidx.shape[1]), np.arange(latgidx.shape[0]))
+				x1_ch = np.array_split(x1[latlon_class.valid_domain], nproc, axis=0)
+				x2_ch = np.array_split(x2[latlon_class.valid_domain], nproc, axis=0)
+				args = [(x1_ch[ich], x2_ch[ich], latgidx, longidx, latlon_class.img['data'], grid_dim) for ich in range(nproc)]
+			else:
+				x1, x2 = np.meshgrid(np.arange(latgidx.shape[1]), np.arange(latgidx.shape[0]))
+				x1_ch = np.array_split(x1, nproc, axis=0)
+				x2_ch = np.array_split(x2, nproc, axis=0)
+				args = [(x1_ch[ich], x2_ch[ich], latgidx, longidx, latlon_class.img['data'], grid_dim) for ich in range(nproc)]
+			with mp.Pool(processes=nproc) as pool:
+				results = pool.map(self.count_and_sum, args)
+			count_list, value_list = zip(*results)
+			count_stack = np.stack(count_list, axis=-1)
+			value_stack = np.stack(value_list, axis=-1)
+			ncount, imgsum = np.sum(count_stack, axis=2), np.sum(value_stack, axis=3)
 		else:
-			ixx_incl = ixx.copy()
-			iyy_incl = iyy.copy()
+			x1, x2 = np.meshgrid(np.arange(longidx.shape[1]), np.arange(longidx.shape[0]))
+			if latlon_class.valid_domain is not None:
+				ncount, imgsum = self.count_and_sum((x1[np.where(latlon_class.valid_domain)], x2[np.where(latlon_class.valid_domain)], 
+												latgidx, longidx, latlon_class.img['data'], grid_dim))
+			else:
+				ncount, imgsum = self.count_and_sum((x1, x2, latgidx, longidx, latlon_class.img['data'], grid_dim))
 
-		# counts and sums for averaging in the gridded domain
-		ncount = np.zeros_like(lon_xx)
-		imgsum = np.zeros([lon_xx.shape[0], lon_xx.shape[1], latlon_class.img['data'].shape[2]])
-
-		# gridding (averaging the pixels that fall in each grid)
-		for ix, iy in zip(ixx_incl.flatten(), iyy_incl.flatten()): # for each pixel in the un-gridded image
-			ncount[latgidx[iy, ix], longidx[iy, ix]] += 1                                       # +1 pixel in the corresponding grid
-			imgsum[latgidx[iy, ix], longidx[iy, ix], :] += latlon_class.img['data'][iy, ix, :]  # add image values into the corresponding grid
 		imgout = np.zeros_like(imgsum)
 		for ich in range(latlon_class.img['data'].shape[2]):
 			imgout[:, :, ich] = imgsum[:, :, ich]/np.float64(ncount)                             # divide by the number of pixels to average the image values
 		return lon_xx, lat_yy, imgout, ncount
+	
+	def count_and_sum(self, arg):
+		x1, x2, ap, aq, av, dim_grid = arg
+		ndimg1, ndimg2, ndimg3 = dim_grid
+		cnt = np.zeros((ndimg1, ndimg2))
+		val = np.zeros((ndimg1, ndimg2, ndimg3))
+		for i1, i2 in zip(x1.flatten(), x2.flatten()):
+			cnt[ap[i2, i1], aq[i2, i1]] += 1
+			val[ap[i2, i1], aq[i2, i1], :] += av[i2, i1, :]
+		return cnt, val
 
 
 	def plot(self):
