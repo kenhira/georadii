@@ -19,7 +19,7 @@ import cartopy.crs as ccrs
 from matplotlib.ticker import FixedLocator
 
 from georadii.georadii import Georadii
-from georadii.meta_flights import Camera_arcsix
+from georadii.camera import Camera_arcsix
 from georadii.util import read_fits 
 
 if __name__ == "__main__":

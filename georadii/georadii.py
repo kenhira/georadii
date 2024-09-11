@@ -68,7 +68,7 @@ class Georadii:
 			elif self.input_coordinate == 'latlon':
 				self.latlon_data = self.LatLon(self.input_array, self.input_meta)
 				if self.mode == 'auto':
-					self.gridded(self.latlon_data)
+					self.gridded()
 				elif self.mode == 'manual':
 					pass
 
@@ -126,7 +126,7 @@ class Georadii:
 			grid_meta = gridmeta
 		# define the grid system
 		if grid_meta['transform']['active']: # Rotate the lat/lon coordinate system so that the grids are more regular
-			lat_center, lon_center = grid_meta['transform']['center']
+			lon_center, lat_center = grid_meta['transform']['center']
 			inclination = grid_meta['transform']['inclination']
 			lat2geo, lon2geo = self.transform_coordinates(latlon_class.latgeo, latlon_class.longeo, lat_center, lon_center, inclination)
 			if gridmeta is None:
