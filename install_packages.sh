@@ -3,6 +3,9 @@ echo "Installing packages..."
 echo "Let's install NumPy..."
 conda install -c anaconda numpy -y
 
+echo "Let's install SciPy..."
+conda install -c anaconda scipy -y
+
 echo "Let's install Matplotlib..."
 conda install -c anaconda matplotlib -y
 

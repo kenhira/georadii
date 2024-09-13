@@ -115,7 +115,7 @@ def find_center(xs, ys):
 	r_pred = np.sqrt(cx_pred ** 2 + cy_pred ** 2 - u[2])
 	return (cx_pred, cy_pred), r_pred
 
-def find_matched_keypoints(lon_xx, lat_yy, image1, image2, dmax=50):
+def find_matched_keypoints(image1, image2, dmax=50):
     import cv2
     image1[np.isnan(image1)] = 0.0
     image2[np.isnan(image2)] = 0.0
@@ -166,18 +166,44 @@ def find_matched_keypoints(lon_xx, lat_yy, image1, image2, dmax=50):
     m_1 = np.array([[x, y] for x, y in points_image1])
     m_2 = np.array([[x, y] for x, y in points_image2])
 
-    ixm1 = np.int_(m_1[:, 0])
-    iym1 = np.int_(m_1[:, 1])
-    rxm1 = m_1[:, 0] - ixm1
-    rym1 = m_1[:, 1] - iym1
+    # Filter out macthes that are too far away
+    d_grid = np.sqrt((m_2[:, 0] - m_1[:, 0])**2 + (m_2[:, 1] - m_1[:, 1])**2)
+    m1 = m_1[np.where(d_grid < dmax), 0:2][0, :, :]
+    m2 = m_2[np.where(d_grid < dmax), 0:2][0, :, :]
+    dgrid = d_grid[np.where(d_grid < dmax)]
+
+    # Filter out outliers by comparing to surrounding matches
+    from scipy.spatial import cKDTree
+    thres_factor = 95
+    radius = 200.
+    tree = cKDTree(m1)
+    neighborhood_idxs = tree.query_ball_point(m1, radius)
+    ini_filtered = []
+    for ini, nei_idxs in enumerate(neighborhood_idxs):
+        if len(nei_idxs) > 1:
+            dthres = np.percentile(d_grid[nei_idxs], thres_factor)
+            if dgrid[ini] < dthres:
+                ini_filtered.append(ini)
+    ini_filtered = np.array(ini_filtered)
+    print("Filtered:", ini_filtered.size)
+    m1 = m1[ini_filtered, :]
+    m2 = m2[ini_filtered, :]
+    dgrid = dgrid[ini_filtered]
+
+    return m1, m2, dgrid
+
+def matched_points_to_latlon(m1, m2, lon_xx, lat_yy):
+    ixm1 = np.int_(m1[:, 0])
+    iym1 = np.int_(m1[:, 1])
+    rxm1 = m1[:, 0] - ixm1
+    rym1 = m1[:, 1] - iym1
     lonm1 = (1. - rxm1)*lon_xx[iym1, ixm1] + rxm1*lon_xx[iym1, ixm1 + 1]
     latm1 = (1. - rym1)*lat_yy[iym1, ixm1] + rym1*lat_yy[iym1 + 1, ixm1]
-    ixm2 = np.int_(m_2[:, 0])
-    iym2 = np.int_(m_2[:, 1])
-    rxm2 = m_2[:, 0] - ixm2
-    rym2 = m_2[:, 1] - iym2
+    ixm2 = np.int_(m2[:, 0])
+    iym2 = np.int_(m2[:, 1])
+    rxm2 = m2[:, 0] - ixm2
+    rym2 = m2[:, 1] - iym2
     lonm2 = (1. - rxm2)*lon_xx[iym2, ixm2] + rxm2*lon_xx[iym2, ixm2 + 1]
     latm2 = (1. - rym2)*lat_yy[iym2, ixm2] + rym2*lat_yy[iym2 + 1, ixm2]
-    dgrid = np.sqrt((m_2[:, 0] - m_1[:, 0])**2 + (m_2[:, 1] - m_1[:, 1])**2)
-    return lonm1[dgrid < dmax], latm1[dgrid < dmax], lonm2[dgrid < dmax], latm2[dgrid < dmax], dgrid[dgrid < dmax]
+    return lonm1, latm1, lonm2, latm2
 
