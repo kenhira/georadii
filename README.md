@@ -20,6 +20,7 @@ conda activate georadii
 
 This project requires the following packages:
  - NumPy
+ - SciPy
  - Matplotlib
  - Cartopy
  - h5py

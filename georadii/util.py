@@ -168,13 +168,34 @@ def find_matched_keypoints(lon_xx, lat_yy, image1, image2, dmax=50):
 
     # Filter out macthes that are too far away
     d_grid = np.sqrt((m_2[:, 0] - m_1[:, 0])**2 + (m_2[:, 1] - m_1[:, 1])**2)
-    m1 = m_1[d_grid < dmax]
-    m2 = m_2[d_grid < dmax]
-    dgrid = d_grid[d_grid < dmax]
-
+    print(d_grid.shape)
+    m1 = m_1[np.where(d_grid < dmax), 0:2][0, :, :]
+    m2 = m_2[np.where(d_grid < dmax), 0:2][0, :, :]
+    print(m_1.shape)
+    print(m1.shape)
+    dgrid = d_grid[np.where(d_grid < dmax)]
+    print(dgrid.shape)
 
     # Filter out outliers by comparing to surrounding matches
-
+    from scipy.spatial import cKDTree
+    thres_factor = 95
+    radius = 200.
+    tree = cKDTree(m1)
+    neighborhood_idxs = tree.query_ball_point(m1, radius)
+    ini_filtered = []
+    for ini, nei_idxs in enumerate(neighborhood_idxs):
+        if len(nei_idxs) > 1:
+            dthres = np.percentile(d_grid[nei_idxs], thres_factor)
+            if dgrid[ini] < dthres:
+                ini_filtered.append(ini)
+            print(nei_idxs)
+            print(dgrid[ini] < dthres, dgrid[ini], dthres)
+            print(d_grid[nei_idxs])
+    ini_filtered = np.array(ini_filtered)
+    print("Filtered:", ini_filtered.size)
+    m1 = m1[ini_filtered, :]
+    m2 = m2[ini_filtered, :]
+    dgrid = dgrid[ini_filtered]
 
     ixm1 = np.int_(m1[:, 0])
     iym1 = np.int_(m1[:, 1])
