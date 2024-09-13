@@ -115,7 +115,7 @@ def find_center(xs, ys):
 	r_pred = np.sqrt(cx_pred ** 2 + cy_pred ** 2 - u[2])
 	return (cx_pred, cy_pred), r_pred
 
-def find_matched_keypoints(lon_xx, lat_yy, image1, image2, dmax=50):
+def find_matched_keypoints(image1, image2, dmax=50):
     import cv2
     image1[np.isnan(image1)] = 0.0
     image2[np.isnan(image2)] = 0.0
@@ -168,13 +168,9 @@ def find_matched_keypoints(lon_xx, lat_yy, image1, image2, dmax=50):
 
     # Filter out macthes that are too far away
     d_grid = np.sqrt((m_2[:, 0] - m_1[:, 0])**2 + (m_2[:, 1] - m_1[:, 1])**2)
-    print(d_grid.shape)
     m1 = m_1[np.where(d_grid < dmax), 0:2][0, :, :]
     m2 = m_2[np.where(d_grid < dmax), 0:2][0, :, :]
-    print(m_1.shape)
-    print(m1.shape)
     dgrid = d_grid[np.where(d_grid < dmax)]
-    print(dgrid.shape)
 
     # Filter out outliers by comparing to surrounding matches
     from scipy.spatial import cKDTree
@@ -188,15 +184,15 @@ def find_matched_keypoints(lon_xx, lat_yy, image1, image2, dmax=50):
             dthres = np.percentile(d_grid[nei_idxs], thres_factor)
             if dgrid[ini] < dthres:
                 ini_filtered.append(ini)
-            print(nei_idxs)
-            print(dgrid[ini] < dthres, dgrid[ini], dthres)
-            print(d_grid[nei_idxs])
     ini_filtered = np.array(ini_filtered)
     print("Filtered:", ini_filtered.size)
     m1 = m1[ini_filtered, :]
     m2 = m2[ini_filtered, :]
     dgrid = dgrid[ini_filtered]
 
+    return m1, m2, dgrid
+
+def matched_points_to_latlon(m1, m2, lon_xx, lat_yy):
     ixm1 = np.int_(m1[:, 0])
     iym1 = np.int_(m1[:, 1])
     rxm1 = m1[:, 0] - ixm1
@@ -209,5 +205,5 @@ def find_matched_keypoints(lon_xx, lat_yy, image1, image2, dmax=50):
     rym2 = m2[:, 1] - iym2
     lonm2 = (1. - rxm2)*lon_xx[iym2, ixm2] + rxm2*lon_xx[iym2, ixm2 + 1]
     latm2 = (1. - rym2)*lat_yy[iym2, ixm2] + rym2*lat_yy[iym2 + 1, ixm2]
-    return lonm1, latm1, lonm2, latm2, dgrid
+    return lonm1, latm1, lonm2, latm2
 
