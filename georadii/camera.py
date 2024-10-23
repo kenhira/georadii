@@ -355,7 +355,7 @@ class Camera_arcsix:
 		hed  = np.interp(hrs, self.hrss, self.heds)
 
 		when = t_act.replace(tzinfo=datetime.timezone.utc)
-		sza  = pysolar.solar.get_altitude(lat, lon, when)
+		sza  = 90. - pysolar.solar.get_altitude(lat, lon, when)
 		saa  = pysolar.solar.get_azimuth( lat, lon, when, elevation=alt)
 
 		aircraft_status = {	'lat'		:	lat,
