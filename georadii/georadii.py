@@ -320,6 +320,7 @@ class Georadii:
 
 			_fov       = 65.    # deg
 			_degperpix =  0.09  # deg/pixel
+			_degperpix2 = 0.00  # deg/pixel
 			_radcaldic = {}
 			_radcaldic['red']   = {	'c0':       0.03697803089161538   ,   # red channel cal main term
 									'c2':       2.9306376815596668e-08,   # quadratic correction term
@@ -351,7 +352,8 @@ class Georadii:
 				raise OSError(message)
 
 			self.zenith_limit = self.cam_meta.get('fov', _fov)             # deg
-			self.degperpix    = self.cam_meta.get('degperpix', _degperpix) # deg/pixel
+			self.degperpix    = self.cam_meta.get('degperpix',  _degperpix) # deg/pixel
+			self.degperpix2   = self.cam_meta.get('degperpix2', _degperpix2) # deg/pixel
 			img = {'data': image, 'type': self.cam_meta['type'], 'unit': self.cam_meta['unit']}
 			self.load_image(img, self.cam_meta['centerpix'], self.cam_meta['headvector'])
 			self.radcal       = self.cam_meta.get('radcal', False)
@@ -365,13 +367,18 @@ class Georadii:
 			self.img2d_zero = np.zeros_like(self.img['data'][:, :, 0])
 			self.xa, self.ya = np.arange(self.img['data'].shape[1]), np.arange(self.img['data'].shape[0])
 			self.xx, self.yy = np.meshgrid(self.xa, self.ya)
-			self.r_incl = np.int_(self.zenith_limit/self.degperpix)
+			# self.r_incl = np.int_(self.zenith_limit/self.degperpix)
+			if np.abs(self.degperpix2) < 1e-8:
+				self.r_incl = np.int_(self.zenith_limit/self.degperpix)
+			else:
+				self.r_incl = np.int_((-self.degperpix + np.sqrt(self.degperpix**2. + 4.*self.degperpix2*self.zenith_limit))/(2.*self.degperpix2))
 			self.r_2    = (self.xx - centerpix[0])*(self.xx - centerpix[0]) + (self.yy - centerpix[1])*(self.yy - centerpix[1])
 			self.r_     = np.sqrt(self.r_2)
 			self.valid_domain = self.r_ < self.r_incl
 			self.zeniths  = np.ma.masked_where(self.r_ > self.r_incl, self.img2d_zero)
 			self.azimuths = np.ma.masked_where(self.r_ > self.r_incl, self.img2d_zero)
-			self.zeniths  = self.zeniths  + self.r_*self.degperpix*np.pi/180.
+			# self.zeniths  = self.zeniths  + self.r_*self.degperpix*np.pi/180.
+			self.zeniths  = self.zeniths  + (self.r_**2.*self.degperpix2 + self.r_*self.degperpix)*np.pi/180.
 			self.head_ang = np.arctan2(headvector[0], headvector[1])
 			self.azimuths = (self.azimuths + np.arctan2(self.xx - centerpix[0], self.yy - centerpix[1]) - self.head_ang) % (2.*np.pi)
 
@@ -425,7 +432,7 @@ class Georadii:
 			self.vaa = np.ma.masked_where(self.r_ > self.r_incl, self.vaa)	
 			self.nflat = self.xcar*alt/self.zcar
 			self.eflat = self.ycar*alt/self.zcar
-			return self.eflat, self.nflat
+			return self.vza, self.vaa
 
 		def cartesian_to_latlon(self): #lat, lon):
 			lat = self.cam_meta['lat']
