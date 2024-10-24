@@ -51,7 +51,7 @@ def reshapeFITS(img):
     return newimg
 
 # Read image file (Fits file format)
-def read_fits(fits_filename, flipud=False, fliplr=True):
+def read_fits(fits_filename, flipud=False, fliplr=True, mask_fits_filename=None):
 	if not os.path.exists(fits_filename):
 		print('Error: {} not found.'.format(fits_filename))
 		sys.exit()
@@ -63,6 +63,19 @@ def read_fits(fits_filename, flipud=False, fliplr=True):
 	if fliplr:
 		fimg = np.fliplr(fimg)
 	fheader = handle[0].header
+
+	if mask_fits_filename is not None:
+		print('Reading {}'.format(mask_fits_filename))
+		handle_msk = fits.open(mask_fits_filename)
+		fmsk = reshapeFITS(handle_msk[0].data)
+		if flipud:
+			fmsk = np.flipud(fmsk)
+		if fliplr:
+			fmsk = np.fliplr(fmsk)
+		fheader_msk = handle_msk[0].header
+
+		fimg[fmsk > 0.] = np.nan
+
 	return fimg, fheader
 
 # # Calculate Direct-Cosine-Matrix to convert NED(North-East-Down) coordinate to

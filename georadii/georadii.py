@@ -374,7 +374,7 @@ class Georadii:
 				self.r_incl = np.int_((-self.degperpix + np.sqrt(self.degperpix**2. + 4.*self.degperpix2*self.zenith_limit))/(2.*self.degperpix2))
 			self.r_2    = (self.xx - centerpix[0])*(self.xx - centerpix[0]) + (self.yy - centerpix[1])*(self.yy - centerpix[1])
 			self.r_     = np.sqrt(self.r_2)
-			self.valid_domain = self.r_ < self.r_incl
+			self.valid_domain = (self.r_ < self.r_incl) & (~np.isnan(self.img['data'][:, :, 0]))
 			self.zeniths  = np.ma.masked_where(self.r_ > self.r_incl, self.img2d_zero)
 			self.azimuths = np.ma.masked_where(self.r_ > self.r_incl, self.img2d_zero)
 			# self.zeniths  = self.zeniths  + self.r_*self.degperpix*np.pi/180.
@@ -518,7 +518,7 @@ def reshapeFITS(img):
     return newimg
 
 # Read image file (Fits file format)
-def read_fits(fits_filename, flipud=False, fliplr=True):
+def read_fits(fits_filename, flipud=False, fliplr=True, mask_fits_filename=None):
 	if not os.path.exists(fits_filename):
 		print('Error: {} not found.'.format(fits_filename))
 		sys.exit()
@@ -530,6 +530,19 @@ def read_fits(fits_filename, flipud=False, fliplr=True):
 	if fliplr:
 		fimg = np.fliplr(fimg)
 	fheader = handle[0].header
+	
+	if mask_fits_filename is not None:
+		print('Reading {}'.format(mask_fits_filename))
+		handle_msk = fits.open(mask_fits_filename)
+		fmsk = reshapeFITS(handle_msk[0].data)
+		if flipud:
+			fmsk = np.flipud(fmsk)
+		if fliplr:
+			fmsk = np.fliplr(fmsk)
+		fheader_msk = handle_msk[0].header
+
+		fimg[fmsk > 0.] = np.nan
+
 	return fimg, fheader
 
 # # Calculate Direct-Cosine-Matrix to convert NED(North-East-Down) coordinate to
