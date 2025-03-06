@@ -193,7 +193,7 @@ class RSP_arcsix:
 				message = 'Error [RSP_arcsix]: date %s is not avaiable.'
 				raise OSError(message)
 			else:
-				print('Camera images for [%s]' % self._flights[date]['description'])
+				print('RSP images for [%s]' % self._flights[date]['description'])
 	
 	def load_rsp_h5(self, start_time, end_time, location='.'):
 		self.h5_allfiles = self.locate_allh5(location=location)
@@ -219,6 +219,7 @@ class RSP_arcsix:
 				wvls    = h5_file['Data']['Wavelength'][...][0:nband]
         
 		glat_arr, glon_arr = np.array([], dtype=float), np.array([], dtype=float)
+		vza_arr, vaa_arr = np.array([], dtype=float), np.array([], dtype=float)
 		plat_arr, plon_arr = np.array([], dtype=float), np.array([], dtype=float)
 		time_arr = np.array([], dtype='datetime64')
 		intens_arr = np.zeros((0, 9), dtype=float)
@@ -229,24 +230,34 @@ class RSP_arcsix:
 				nband   = h5_file['dim_Bands'][...].shape[0]
 				ground_latitude  = h5_file['Geometry']['Ground_Latitude'][...][0:2, 0:nscan, 0:nsector]
 				ground_longitude = h5_file['Geometry']['Ground_Longitude'][...][0:2, 0:nscan, 0:nsector]
+				viewing_azimuth  = h5_file['Geometry']['Viewing_Azimuth'][...][0:2, 0:nscan, 0:nsector]
+				viewing_zenith   = 180. - h5_file['Geometry']['Viewing_Zenith'][...][0:2, 0:nscan, 0:nsector]
 				platform_latitude  = h5_file['Platform']['Platform_Latitude'][...][0:nscan]
 				platform_longitude = h5_file['Platform']['Platform_Longitude'][...][0:nscan]
 				# time_scan        = h5_file['Platform']['Fraction_of_Day'][...][0:nscan]
 				time_pixel       = h5_file['Geometry']['Measurement_Time'][...][0:2, 0:nscan, 0:nsector]
+				solar_cons       = h5_file['Calibration']['Solar_Constant'][...][0:nband]
 				intensity_1   = h5_file['Data']['Intensity_1'][...][0:nscan, 0:nsector, 0:nband]
-				intensity_2   = h5_file['Data']['Intensity_2'][...][0:nscan, 0:nsector, 0:nband]            
-				intensity_avg = (intensity_1 + intensity_2) / 2
+				intensity_2   = h5_file['Data']['Intensity_2'][...][0:nscan, 0:nsector, 0:nband]
+				intensity_avg = (intensity_1 + intensity_2) / 2.
+				radiance      = intensity_avg*solar_cons[np.newaxis, np.newaxis, 0:nband]/(np.pi*1000.)
 				glat_arr = np.append(glat_arr, ground_latitude[0, 0:nscan, 0:nsector].flatten())
 				glon_arr = np.append(glon_arr, ground_longitude[0, 0:nscan, 0:nsector].flatten())
-				plat_arr = np.append(plat_arr, platform_latitude[0:nscan].flatten())
-				plon_arr = np.append(plon_arr, platform_longitude[0:nscan].flatten())
+				vza_arr  = np.append(vza_arr, viewing_zenith[0, 0:nscan, 0:nsector].flatten())
+				vaa_arr  = np.append(vaa_arr, viewing_azimuth[0, 0:nscan, 0:nsector].flatten())
+				plat_arr = np.append(plat_arr, np.repeat(platform_latitude[0:nscan], nsector).flatten())
+				plon_arr = np.append(plon_arr, np.repeat(platform_longitude[0:nscan], nsector).flatten())
 				# time_arr = np.append(time_arr, np.array([datetime.strptime(start_time_str.split(' ')[0] + ' 00:00', '%Y-%m-%d %H:%M') + datetime.timedelta(days=fofd) for fofd in time_scan[0:nscan]]))
 				time_arr = np.append(time_arr, Time(time_pixel[0, 0:nscan, 0:nsector].flatten(), format='mjd').to_datetime())
-				intens_arr = np.append(intens_arr, intensity_avg[0:nscan, 0:nsector, 0:nband].reshape(nscan*nsector, nband), axis=0)
+				intens_arr = np.append(intens_arr, radiance[0:nscan, 0:nsector, 0:nband].reshape(nscan*nsector, nband), axis=0)
 		ipixels = np.where((st_dt + self.t_offset < time_arr) & (time_arr < en_dt + self.t_offset))[0]
 		colpix  = np.zeros((len(ipixels), 1, 3))
 		latpix  = np.zeros((len(ipixels), 1))
 		lonpix  = np.zeros((len(ipixels), 1))
+		platpix  = np.zeros((len(ipixels), 1))
+		plonpix  = np.zeros((len(ipixels), 1))
+		vzapix  = np.zeros((len(ipixels), 1))
+		vaapix  = np.zeros((len(ipixels), 1))
 		timepix = np.zeros((len(ipixels), 1), dtype='datetime64')
 		# print(ipixels)
 		# print(wvls)
@@ -256,15 +267,21 @@ class RSP_arcsix:
 		colpix[:, 0, 2]  = intens_arr[ipixels, 1]
 		latpix[:, 0]     = glat_arr[ipixels]
 		lonpix[:, 0]     = glon_arr[ipixels]
+		vzapix[:, 0]     = vza_arr[ipixels]
+		vaapix[:, 0]     = vaa_arr[ipixels]
+		platpix[:, 0]    = plat_arr[ipixels]
+		plonpix[:, 0]    = plon_arr[ipixels]
 		# timepix[:, 0]    = time_arr[ipixels]
-		img = {'data': colpix, 'type': 'radiance', 'unit': 'radiance'}
-		latlon_meta = {'longeo': lonpix, 'latgeo': latpix}#, 'timepix': timepix}
+		img = {'data': colpix, 'type': 'radiance', 'unit': 'radiance', 'wavelength': wvls[np.array([3, 2, 1])]}
+		# latlon_meta = {'longeo': lonpix, 'latgeo': latpix}#, 'timepix': timepix}
+		latlon_meta = {'longeo': lonpix, 'latgeo': latpix, 'vza': vzapix, 'vaa': vaapix, 'lonplat': plonpix, 'latplat': platpix}#, 'timepix': timepix}
 		return img, latlon_meta
 	
 	def locate_allh5(self, location='.'):
 		yyyy, mm, dd = self.date.split('-')
 		if True:
-			path = os.path.join(location, 'ARCSIX-RSP-L1C_P3B_%s%s%s_R01/*.h5' % (yyyy, mm, dd))
+			# path = os.path.join(location, 'ARCSIX-RSP-L1C_P3B_%s%s%s_R01/*.h5' % (yyyy, mm, dd))
+			path = os.path.join(location, 'RSP1-L1C_P3_%s%s%s_R*/*.h5' % (yyyy, mm, dd)) #RSP1-L1C_P3_20240605_R02
 			# path = location
 		h5_allfiles = glob.glob(path, recursive=True)
 		if len(h5_allfiles) == 0:
@@ -275,10 +292,12 @@ class RSP_arcsix:
 
 	def find_files_in_range(self, h5_files, start_time, end_time):
 		file_timestamps = []
-		print(h5_files, start_time, end_time)
+		# print(h5_files, start_time, end_time)
 		for file in h5_files:
-			timestamp_str = os.path.basename(file).split('_')[2]
-			timestamp = datetime.datetime.strptime(timestamp_str, "%Y%m%d%H%M%S")
+			# timestamp_str = os.path.basename(file).split('_')[2]
+			# timestamp = datetime.datetime.strptime(timestamp_str, "%Y%m%d%H%M%S")
+			timestamp_str = os.path.basename(file).split('_')[2] #RSP1-P3_L1C-RSPCOL-CollocatedRadiances_20240605T113433Z_V002-20241114T193424Z.h5
+			timestamp = datetime.datetime.strptime(timestamp_str, "%Y%m%dT%H%M%SZ")
 			file_timestamps.append((file, timestamp))
 		files_all = sorted([file for file, timestamp in file_timestamps])
 		files_before_start = sorted([file for file, timestamp in file_timestamps if start_time > timestamp])
