@@ -25,6 +25,12 @@ if __name__ == "__main__":
     start_time = '13:08:48'
     end_time   = '13:08:55'
 
+    # Housekeeping file location
+    hsk_location = '../testdata/'
+
+    # Fits file location
+    fits_location = '../testdata/**/*.fits'
+
     # Make the directpry to save the output pngs, if non-existent
     dirname = 'out_gridding'
     if not os.path.exists(dirname):
@@ -34,10 +40,10 @@ if __name__ == "__main__":
     camtool = Camera_arcsix(date)
 
     # Load housekeeping file needed for identifying the aircraft status
-    camtool.load_hsk(location='../testdata/')
+    camtool.load_hsk(location=hsk_location)
 
     # Retrieve all the image files for the specified time period
-    fits_list = camtool.load_fits(start_time, end_time, location='../testdata/**/*.fits')
+    fits_list = camtool.load_fits(start_time, end_time, location=fits_location)
 
     # Extract the image file and image metadata
     rad_geom, t_act = camtool.rad_and_geom_from_fits(fits_list[0], mask_aircraft_shadow=False)
