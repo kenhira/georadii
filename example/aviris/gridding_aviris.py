@@ -25,15 +25,15 @@ from georadii.util import read_fits
 if __name__ == "__main__":
 
     # Open an H5 file that contains (un-gridded) AVIRIS image
-    fn_h5 = '/path/to/angYYYYMMDDthhmmss_3ch.h5'
-    # fn_h5 = 'aviris/data/ang20240611t122853_3ch.h5'
+    # fn_h5 = '/path/to/angYYYYMMDDthhmmss_3ch.h5'
+    fn_h5 = 'aviris/data/ang20240605t160655_3ch.h5'
     with h5py.File(fn_h5, 'r') as f:
-        lons = f['longitude'][...]
-        lats = f['latitude'][...]
-        rads = f['radiance'][...]
-
+        lons = f['longitude'][...].astype(np.float64)
+        lats = f['latitude'][...].astype(np.float64)
+        rads = f['radiance'][...].astype(np.float64)
+    
     # Define bounds for gridding (AVIRIS image can cover large spatial domain!)
-    xmin, xmax, ymin, ymax = -64.5, -63.5, 85.46, 85.54
+    xmin, xmax, ymin, ymax = -60.0, -59.0, 83.61, 83.69
 
     # Subselect the region within the bounds (if None, all the region gets gridded)
     valid_domain = (xmin < lons) & (lons < xmax) & (ymin < lats) & (lats < ymax)
@@ -46,13 +46,13 @@ if __name__ == "__main__":
 
     # Define a grid system for gridding
     gridding_meta = {   'transform' : { 'active' :  True,
-                                        'center' :  (0.5*(ymin + ymax), 0.5*(xmin + xmax)),
+                                        'center' :  (0.5*(xmin + xmax), 0.5*(ymin + ymax)),
                                         'inclination'   : 30.},
-                        'x'         : { 'min'    :  -0.2,
-                                        'max'    :   0.2,
+                        'x'         : { 'min'    :  -0.1,
+                                        'max'    :   0.1,
                                         'incr'   :   0.0002},
-                        'y'         : { 'min'    :  -0.2,
-                                        'max'    :   0.2,
+                        'y'         : { 'min'    :  -0.1,
+                                        'max'    :   0.1,
                                         'incr'   :   0.0002}}
     # Gridding
     lon_xx, lat_yy, imgout, ncount = aviris1.gridded(gridding_meta)
@@ -78,7 +78,9 @@ if __name__ == "__main__":
     g1 = ax.gridlines(lw=0.5, color='gray', draw_labels=True, ls='-')
     g1.xlocator = FixedLocator(np.arange(-180, 180.1, 0.2*10.**(np.round(np.log10(np.abs(xmax - xmin))))))
     g1.ylocator = FixedLocator(np.arange(-90.0, 89.9, 0.2*10.**(np.round(np.log10(np.abs(ymax - ymin))))))
-    ax.annotate('Gridded AVIRIS image', (0.01, 1.05), xycoords='axes fraction')
+    g1.top_labels = False
+    g1.right_labels = False
+    ax.set_title('Gridded AVIRIS image')
 
     # Make the directpry to save the output pngs, if non-existent
     dirname = 'out_gridding_aviris'
@@ -91,5 +93,6 @@ if __name__ == "__main__":
     while os.path.exists(fn_out):
         fnum += 1
         fn_out = '%s/%04d.png' % (dirname, fnum)
+    plt.tight_layout()
     plt.savefig(fn_out, dpi=300)
     plt.show()

@@ -1,3 +1,12 @@
+"""
+gridding_camera.py
+
+author: Ken Hirata (@kenhira)
+
+This script processes camera images, performs georeferencing, and grids the data to create a geographical map. The resulting image is saved as a .png file.
+
+"""
+
 import os
 import h5py
 import numpy as np
@@ -16,6 +25,12 @@ if __name__ == "__main__":
     start_time = '13:08:48'
     end_time   = '13:08:55'
 
+    # Housekeeping file location
+    hsk_location = '../testdata/'
+
+    # Fits file location
+    fits_location = '../testdata/**/*.fits'
+
     # Make the directpry to save the output pngs, if non-existent
     dirname = 'out_gridding'
     if not os.path.exists(dirname):
@@ -25,31 +40,17 @@ if __name__ == "__main__":
     camtool = Camera_arcsix(date)
 
     # Load housekeeping file needed for identifying the aircraft status
-    camtool.load_hsk(location='../testdata/')
+    camtool.load_hsk(location=hsk_location)
 
     # Retrieve all the image files for the specified time period
-    fits_list = camtool.load_fits(start_time, end_time, location='../testdata/**/*.fits')
+    fits_list = camtool.load_fits(start_time, end_time, location=fits_location)
 
-    # Extract the image file
-    img, header = read_fits(fits_list[0], flipud=camtool.flipud, fliplr=camtool.fliplr)
-
-    # Get the aircraft status at the time of image acquisition
-    t_act, aircraft_status = camtool.interpolate_hsk_for_fits(header['DATE-OBS'])
+    # Extract the image file and image metadata
+    rad_geom, t_act = camtool.rad_and_geom_from_fits(fits_list[0], mask_aircraft_shadow=False)
     print('Camera timestamp:', t_act)
 
-    # Define the camera image metadata needed for georeferencing
-    img_meta = {'type'		:	'count',
-                'unit'		:	'number',
-                'exptime'	:   header['EXPTIME'],
-                'radcal'	:	True,
-                'radcaldic'	: 	camtool.radcal_dict_simple}
-    img_meta.update(aircraft_status)
-
-    cam_setting = camtool.camera_setting
-    img_meta.update(camtool.camera_setting)
-
     # Create the Georadii object (automatic georeferencing)
-    cam1 = Georadii(img, input_type='camera', input_coordinate='camera', input_meta=img_meta)
+    cam1 = Georadii(rad_geom, input_type='camera', input_coordinate='geometry', input_meta={})
 
     # Gridding
     lon_xx, lat_yy, imgout_camera, ncount = cam1.gridded()
