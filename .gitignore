@@ -9,15 +9,13 @@ __pycache__
 *.egg-info
 build
 dist
-
-# Old files
-data/
-obsolete/
+*.pyd
+*.so
 
 # Output files
 out_*
 *.png
+npy/
 
-# Test files
-test_*
-work/
+# Data files
+data/
