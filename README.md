@@ -1,5 +1,14 @@
 # Georadii (Georeferencing and Radiometric Toolkit for Airborne Imagery)
 
+## Overview
+This package provides Python-based tools to handle airborne radiometric measurements. The development was aimed primarily for analyzing nadir-view all-sky camera data from NASA's [Arctic Radiation-Cloud-Aerosol-Surface Interaction Experiment](https://espo.nasa.gov/arcsix) (ARCSIX). The tool also supports some data processing for Research Scanning Polarimeter (RSP) and Airborne Visible / Infrared Imaging Spectrometer (AVIRIS).
+
+The tools included in this package is intended for the following workflow:
+
+> 1. Raw data in image space (e.g., camera) -> Georeferenced data (lat/lon, viewing angle)
+> 
+> 2. Georeferenced data (e.g., camera, RSP, AVIRIS, etc.)-> Gridded data
+
 ## Installation
 
 First, clone this repository:
