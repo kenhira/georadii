@@ -9,7 +9,11 @@ This directory contains example codes for using the Georadii package for camera 
 ## Usage
 
 ### Running `save_fits.py`
-(Under development)
+```bash
+python3 save_fits.py <input_fits_file> <output_png_file> [scaling_factor]
+```
 
 ### Running `gridding_camera.py`
-(Under development)
+```bash
+python3 gridding_camera.py
+```
