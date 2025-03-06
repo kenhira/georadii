@@ -19,3 +19,6 @@ npy/
 
 # Data files
 data/
+
+# Obsolete files
+obsolete/
