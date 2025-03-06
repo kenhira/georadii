@@ -1,7 +1,7 @@
 echo "Installing packages..."
 
 echo "Let's install NumPy..."
-conda install -c anaconda numpy -y
+conda install anaconda::numpy=2.2 -y
 
 echo "Let's install SciPy..."
 conda install -c anaconda scipy -y

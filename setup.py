@@ -4,7 +4,7 @@ import numpy as np
 setup(
     name = 'georadii',
     version = '0.0.1',
-    description = 'Geolocation and Radiometric conversion toolkit for Airborne Imagery',
+    description = 'Georeferencing and Radiometric Toolkit for Airborne Imagery',
     classifiers = [
        'Development Status :: 1 - Planning',
        'Intended Audience :: Science/Research',
@@ -19,7 +19,7 @@ setup(
     license = 'MIT',
     packages = ['georadii'],
     install_requires = [
-        'numpy',
+        'numpy>=2',
         'matplotlib',
         'h5py',
         'pysolar',
