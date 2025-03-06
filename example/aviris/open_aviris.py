@@ -27,8 +27,8 @@ def read_aviris_geo(dir_name, file_head, out_format='latlon'):
     fh_glt = glob.glob("%s/%s_*_GLT.hdr"     % (dir_name, file_head))[0]
     fb_igm = glob.glob("%s/%s_*_IGM"         % (dir_name, file_head))[0]
     fh_igm = glob.glob("%s/%s_*_IGM.hdr"     % (dir_name, file_head))[0]
-    fb_obs = glob.glob("%s/%s_*_OBS"         % (dir_name, file_head))[0]
-    fh_obs = glob.glob("%s/%s_*_OBS.hdr"     % (dir_name, file_head))[0]
+    fb_obs = glob.glob("%s/%s_*_OBS_ORT"     % (dir_name, file_head))[0]
+    fh_obs = glob.glob("%s/%s_*_OBS_ORT.hdr" % (dir_name, file_head))[0]
     fb_img = glob.glob("%s/%s_*_RDN_ORT"     % (dir_name, file_head))[0]
     fh_img = glob.glob("%s/%s_*_RDN_ORT.hdr" % (dir_name, file_head))[0]
 
@@ -74,8 +74,8 @@ def read_aviris_geo(dir_name, file_head, out_format='latlon'):
 if __name__ == "__main__":
 
     # Specify the directory name and file header
-    directory_name = "ang20240611t134629"
-    fi_head        = "ang20240611t134629"
+    directory_name = "ang20240605t160655"
+    fi_head        = "ang20240605t160655"
 
     # plot = True
     plot = False
