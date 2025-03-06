@@ -1,4 +1,5 @@
-from setuptools import setup
+from setuptools import Extension, setup
+import numpy as np
 
 setup(
     name = 'georadii',
@@ -24,6 +25,9 @@ setup(
         'pysolar',
         ],
     python_requires = '~=3.11',
+    ext_modules=[
+        Extension("georadii.compute", sources=["georadii/compute.c"], include_dirs=[np.get_include()],)
+    ],
     include_package_data = True,
     zip_safe = False
     )
