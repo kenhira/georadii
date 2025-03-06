@@ -13,6 +13,9 @@ echo "Let's install Cartopy..."
 conda install -c anaconda cartopy -y
 
 echo "Let's install h5py..."
+conda install -c anaconda netcdf4 -y
+
+echo "Let's install h5py..."
 conda install -c anaconda h5py -y
 
 echo "Let's install astropy..."
@@ -20,6 +23,9 @@ conda install -c anaconda astropy -y
 
 echo "Let's install Pandas..."
 conda install -c anaconda pandas -y
+
+echo "Let's install Rasterio..."
+conda install -c conda-forge rasterio -y
 
 echo "Let's install pysolar (pip)..."
 python -m pip install pysolar

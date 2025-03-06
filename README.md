@@ -1,4 +1,4 @@
-# Georadii (Geolocation and Radiometric Conversion Toolkit for Airborne Imagery)
+# Georadii (Georeferencing and Radiometric Toolkit for Airborne Imagery)
 
 ## Installation
 
@@ -23,9 +23,11 @@ This project requires the following packages:
  - SciPy
  - Matplotlib
  - Cartopy
+ - NetCDF
  - h5py
  - astropy
  - Pandas
+ - Rasterio
  - pysolar
  - OpenCV
 
@@ -36,7 +38,7 @@ bash install_packages.sh
 
 Now you can install the package:
 ```bash
-python3 -m pip install .
+python3 -m pip install -e .
 ```
 
 ## Usage
