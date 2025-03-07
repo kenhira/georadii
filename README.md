@@ -36,6 +36,7 @@ This project requires the following packages:
  - h5py
  - astropy
  - Pandas
+ - Scikit-image
  - Rasterio
  - pysolar
  - OpenCV
