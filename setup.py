@@ -1,9 +1,10 @@
-from setuptools import setup
+from setuptools import Extension, setup
+import numpy as np
 
 setup(
     name = 'georadii',
     version = '0.0.1',
-    description = 'Geolocation and Radiometric conversion toolkit for Airborne Imagery',
+    description = 'Georeferencing and Radiometric Toolkit for Airborne Imagery',
     classifiers = [
        'Development Status :: 1 - Planning',
        'Intended Audience :: Science/Research',
@@ -18,12 +19,15 @@ setup(
     license = 'MIT',
     packages = ['georadii'],
     install_requires = [
-        'numpy',
+        'numpy>=2',
         'matplotlib',
         'h5py',
         'pysolar',
         ],
     python_requires = '~=3.11',
+    ext_modules=[
+        Extension("georadii.compute", sources=["georadii/compute.c"], include_dirs=[np.get_include()],)
+    ],
     include_package_data = True,
     zip_safe = False
     )
