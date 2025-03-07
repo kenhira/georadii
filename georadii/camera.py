@@ -596,11 +596,11 @@ class Camera_arcsix:
 		fits_list = []
 		lat_list, lon_list = [], []
 		for ifits, fits_fn in enumerate(self.fits_allfiles):
-			tt_fn = datetime.datetime.strptime(fits_fn[-14:-6], '%H_%M_%S')
+			tt_fn = datetime.datetime.strptime(fits_fn.split('.fits')[0][-9:-1], '%H_%M_%S')
 			# if campaign.lower() == 'camp2ex' and tt_fn.hour < 15: tt_fn += datetime.timedelta(days=1)
 			if st_dt <= tt_fn <= en_dt:
 				fits_list.append(fits_fn)
-				t_fn  = datetime.datetime.strptime(self.date + ' ' + fits_fn[-14:-6], '%Y-%m-%d %H_%M_%S')
+				t_fn  = datetime.datetime.strptime(self.date + ' ' + fits_fn.split('.fits')[0][-9:-1], '%Y-%m-%d %H_%M_%S')
 				to_s = self.to_s1 + (tt_fn - self.to_t1).total_seconds() * (self.to_s2 - self.to_s1) / (self.to_t2 - self.to_t1).total_seconds()
 				# print('Time offset: %s' % to_s)
 				t_offset = datetime.timedelta(days=self.to_d, seconds=to_s)
@@ -619,14 +619,14 @@ class Camera_arcsix:
 		num_rf = self.flight_meta['description'].split(' ')[-1]
 		if location in ['ARCSIX1KSS', 'ARCISX3KSS']:
 			if self.flight_date <= datetime.datetime(2024, 8, 3):
-				path = '/Volumes/ARCSIX1KSS/ARCSIX_RF%s_%s_%s_%s/Camera/**/*.fits' % (num_rf, yyyy, mm, dd)
+				path = '/Volumes/ARCSIX1KSS/ARCSIX_RF%s_%s_%s_%s/Camera/**/*.fits*' % (num_rf, yyyy, mm, dd)
 			else:
-				path = '/Volumes/ARCSIX3KSS/ARCSIX_RF%s_%s_%s_%s/Camera/**/*.fits' % (num_rf, yyyy, mm, dd)
+				path = '/Volumes/ARCSIX3KSS/ARCSIX_RF%s_%s_%s_%s/Camera/**/*.fits*' % (num_rf, yyyy, mm, dd)
 		elif location in ['ARCSIX2KSS', 'ARCISX4KSS']:
 			if self.flight_date <= datetime.datetime(2024, 8, 3):
-				path = '/Volumes/ARCSIX2KSS/ARCSIX_RF%s_%s_%s_%s/Camera/**/*.fits' % (num_rf, yyyy, mm, dd)
+				path = '/Volumes/ARCSIX2KSS/ARCSIX_RF%s_%s_%s_%s/Camera/**/*.fits*' % (num_rf, yyyy, mm, dd)
 			else:
-				path = '/Volumes/ARCSIX4KSS/ARCSIX_RF%s_%s_%s_%s/Camera/**/*.fits' % (num_rf, yyyy, mm, dd)
+				path = '/Volumes/ARCSIX4KSS/ARCSIX_RF%s_%s_%s_%s/Camera/**/*.fits*' % (num_rf, yyyy, mm, dd)
 		else:
 			path = location
 		
