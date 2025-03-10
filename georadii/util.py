@@ -610,3 +610,14 @@ def plot_angular_grid_rad_and_ref(fn_out, rel_azimuth, zenith, rad, ref, sza, fl
     fig.tight_layout()
 
     fig.savefig(fn_out, dpi=300)
+
+def makedir_numbered(dirname):
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
+    fnum = 1
+    dir2name = '%s/%04d' %(dirname, fnum)
+    while os.path.exists(dir2name):
+        fnum += 1
+        dir2name = '%s/%04d' %(dirname, fnum)
+    os.makedirs(dir2name)
+    return dir2name
