@@ -100,7 +100,7 @@ class Georadii:
 	def gridded(self, gridmeta=None, enable_mp=False, use_c=True): # Note: multiprocessing is currently slow
 		latlon_class = self.latlon_data
 		grid_meta = {}
-		grid_meta['transform'] = {	'active'      : True, # Rotate the lat/lon coordinate system so that the grids are more regular
+		grid_meta['transform'] = {	'type'        : 'rotate', # Rotate the lat/lon coordinate system so that the grids are more regular
 									'center'      : (0.5*(np.nanmin(latlon_class.longeo) + np.nanmax(latlon_class.longeo)),
 														0.5*(np.nanmin(latlon_class.latgeo) + np.nanmax(latlon_class.latgeo))),
 									'inclination' : 0. }
@@ -120,10 +120,10 @@ class Georadii:
 		scatdat_y = latlon_class.latgeo
 		scatdat_data = latlon_class.img['data']
 		scatdat_valid = latlon_class.valid_domain
-		if grid_meta['transform']['active']: # Rotate the lat/lon coordinate system so that the grids are more regular
+		if grid_meta['transform']['type'] == 'rotate': # Rotate the lat/lon coordinate system so that the grids are more regular
 			lon_center, lat_center = grid_meta['transform']['center']
 			inclination = grid_meta['transform']['inclination']
-			tmp_scatdat_y, tmp_scatdat_x = self.transform_coordinates(scatdat_y, scatdat_x, lat_center, lon_center, inclination)
+			tmp_scatdat_y, tmp_scatdat_x = self.rotate_coordinates(scatdat_y, scatdat_x, lat_center, lon_center, inclination)
 			if gridmeta is None:
 				grid_xmin, grid_xmax, grid_dx = np.nanmin(tmp_scatdat_x), np.nanmax(tmp_scatdat_x), (np.nanmax(tmp_scatdat_x) - np.nanmin(tmp_scatdat_x))/250.
 				grid_ymin, grid_ymax, grid_dy = np.nanmin(tmp_scatdat_y), np.nanmax(tmp_scatdat_y), (np.nanmax(tmp_scatdat_y) - np.nanmin(tmp_scatdat_y))/250.
@@ -133,7 +133,7 @@ class Georadii:
 			grid_xarr = np.arange(grid_xmin, grid_xmax, grid_dx) + 0.5*grid_dx
 			grid_yarr = np.arange(grid_ymin, grid_ymax, grid_dy) + 0.5*grid_dy
 			tmp_grid_xx, tmp_grid_yy = np.meshgrid(grid_xarr, grid_yarr)
-			grid_yy, grid_xx = self.inverse_transform_coordinates(tmp_grid_yy, tmp_grid_xx, lat_center, lon_center, inclination)
+			grid_yy, grid_xx = self.inverse_rotate_coordinates(tmp_grid_yy, tmp_grid_xx, lat_center, lon_center, inclination)
 
 		else:
 			tmp_scatdat_x, tmp_scatdat_y = scatdat_x, scatdat_y
@@ -313,7 +313,7 @@ class Georadii:
 			print('There is nothing to be plotted...')
 	
 	@staticmethod
-	def transform_coordinates(lat_in, lon_in, lat_piv, lon_piv, inclination):
+	def rotate_coordinates(lat_in, lon_in, lat_piv, lon_piv, inclination):
 		# Convert lat_in, lon_in to Cartesian coordinates
 		lat_in_rad = np.radians(lat_in)
 		lon_in_rad = np.radians(lon_in)
@@ -361,7 +361,7 @@ class Georadii:
 		return new_lat, new_lon
 
 	@staticmethod
-	def inverse_transform_coordinates(lat_in, lon_in, lat_piv, lon_piv, inclination):
+	def inverse_rotate_coordinates(lat_in, lon_in, lat_piv, lon_piv, inclination):
 		# Convert lat_in, lon_in to Cartesian coordinates
 		lat_in_rad = np.radians(lat_in)
 		lon_in_rad = np.radians(lon_in)
@@ -410,8 +410,11 @@ class Georadii:
 
 	class LatLon:
 		def __init__(self, img, latlon_meta):
-			self.img = img
 			self.latlon_meta = latlon_meta
+			if self.latlon_meta is None:
+				message = 'Error [Georadii]: latlon_meta needs to be specified.'
+				raise OSError(message)
+			self.img = img
 
 			self.longeo = self.latlon_meta['longeo']
 			self.latgeo = self.latlon_meta['latgeo']
