@@ -134,6 +134,19 @@ class Georadii:
 			grid_yarr = np.arange(grid_ymin, grid_ymax, grid_dy) + 0.5*grid_dy
 			tmp_grid_xx, tmp_grid_yy = np.meshgrid(grid_xarr, grid_yarr)
 			grid_yy, grid_xx = self.inverse_rotate_coordinates(tmp_grid_yy, tmp_grid_xx, lat_center, lon_center, inclination)
+		
+		elif grid_meta['transform']['type'] == 'ease2': # EASE 2.0 grid
+			tmp_scatdat_x, tmp_scatdat_y = self.ease2_coordinates(scatdat_x, scatdat_y)
+			grid_xmin = grid_meta['x'].get('min', np.nanmin(tmp_scatdat_x))
+			grid_xmax = grid_meta['x'].get('max', np.nanmax(tmp_scatdat_x))
+			grid_dx   = grid_meta['x'].get('incr', (np.nanmax(tmp_scatdat_x) - np.nanmin(tmp_scatdat_x)) / 250.)
+			grid_ymin = grid_meta['y'].get('min', np.nanmin(tmp_scatdat_y))
+			grid_ymax = grid_meta['y'].get('max', np.nanmax(tmp_scatdat_y))
+			grid_dy   = grid_meta['y'].get('incr', (np.nanmax(tmp_scatdat_y) - np.nanmin(tmp_scatdat_y)) / 250.)
+			grid_xarr = np.arange(grid_xmin, grid_xmax, grid_dx) + 0.5*grid_dx
+			grid_yarr = np.arange(grid_ymin, grid_ymax, grid_dy) + 0.5*grid_dy
+			tmp_grid_xx, tmp_grid_yy = np.meshgrid(grid_xarr, grid_yarr)
+			grid_xx, grid_yy = self.inverse_ease2_coordinates(tmp_grid_xx, tmp_grid_yy)
 
 		else:
 			tmp_scatdat_x, tmp_scatdat_y = scatdat_x, scatdat_y
@@ -407,6 +420,48 @@ class Georadii:
 		lon_out = np.degrees(lon_out)
 
 		return lat_out, lon_out
+
+	@staticmethod
+	def ease2_coordinates(lon, lat):
+		ecc = 0.0818191908426
+		earth_eq_radius = 6378137.0
+		ref_lon =  0.
+		ref_lat = 90.
+		eps = 1.e-6
+
+		dlon = (lon - ref_lon + 180.) % 360. - 180.
+		phi  = np.deg2rad(lat)
+		lam  = np.deg2rad(dlon)
+		e2   = ecc**2.
+		q = (1. - e2)*((np.sin(phi)/(1. - (e2*np.sin(phi)*np.sin(phi)))) - (1./(2.*ecc))*np.log((1. - ecc*np.sin(phi))/(1. + ecc*np.sin(phi))))
+		qp = 1. - ((1. - e2) / (2.0 * ecc) * np.log((1. - ecc) / (1. + ecc)))
+		rho = np.where(abs(qp - q) < eps, 0., earth_eq_radius*np.sqrt(qp - q))
+		x = rho*np.sin(lam)
+		y = -rho*np.cos(lam)
+		x, y = list(map(np.round, [x, y], [1, 1]))
+		return x, y
+	
+	@staticmethod
+	def inverse_ease2_coordinates(x, y):
+		ecc = 0.0818191908426
+		earth_eq_radius = 6378137.0
+		ref_lon =  0.
+		ref_lat = 90.
+		eps = 1.e-6
+
+		e2 = ecc**2.
+		e4 = ecc**4.
+		e6 = ecc**6.
+		qp = (1. - e2)*((1. / (1. - e2)) - (1./(2.*ecc))*np.log((1. - ecc)/(1. + ecc)))
+		rho = np.sqrt(x**2. + y**2.)
+		beta = np.arcsin(1. - (rho**2./(earth_eq_radius**2.*qp)))
+		lam = np.arctan2(x, -(y + eps))
+		phi = beta + (((e2/3.) + ((31./180.)*e4) + ((517./5040.)*e6))*np.sin(2.*beta)) + \
+					((((23./360.)*e4) + ((251./3780.)*e6))*np.sin(4.*beta)) + \
+					(((761./45360.)*e6)*np.sin(6.*beta))
+		lat = np.rad2deg(phi)
+		lon = (ref_lon + np.rad2deg(lam) + 180.) % 360. - 180.
+		return lon, lat
 
 	class LatLon:
 		def __init__(self, img, latlon_meta):
