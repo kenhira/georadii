@@ -303,19 +303,19 @@ def write_surface_grid_to_nc(output_ncfile, datout, lonxx, latyy, vzagrid, vaagr
     print('Writing to %s' % (output_ncfile))
     with nc.Dataset(output_ncfile, "w", format="NETCDF4") as ncfile:
         # Define dimensions
-        lat_dim = ncfile.createDimension("lat", datout.shape[0])
-        lon_dim = ncfile.createDimension("lon", datout.shape[1])
+        lat_dim = ncfile.createDimension("x1", datout.shape[0])
+        lon_dim = ncfile.createDimension("x2", datout.shape[1])
         ch_dim  = ncfile.createDimension("ch",  datout.shape[2] if len(datout.shape) == 3 else 1)
 
         # Define variables
-        lon_var = ncfile.createVariable("longitude", "f4", ("lat", "lon"))
-        lat_var = ncfile.createVariable("latitude", "f4", ("lat", "lon"))
-        vza_var = ncfile.createVariable("vza", "f4", ("lat", "lon"))
-        vaa_var = ncfile.createVariable("vaa", "f4", ("lat", "lon"))
-        count_var = ncfile.createVariable("count", "i4", ("lat", "lon"))
-        radiance_var = ncfile.createVariable("radiance", "f4", ("lat", "lon", 'ch'), fill_value=np.nan)
+        lon_var = ncfile.createVariable("longitude", "f4", ("x1", "x2"))
+        lat_var = ncfile.createVariable("latitude", "f4", ("x1", "x2"))
+        vza_var = ncfile.createVariable("vza", "f4", ("x1", "x2"))
+        vaa_var = ncfile.createVariable("vaa", "f4", ("x1", "x2"))
+        count_var = ncfile.createVariable("count", "i4", ("x1", "x2"))
+        radiance_var = ncfile.createVariable("radiance", "f4", ("x1", "x2", 'ch'), fill_value=np.nan)
         if reflectance is not None:
-            reflectance_var = ncfile.createVariable("hdrf", "f4", ("lat", "lon", 'ch'), fill_value=np.nan)
+            reflectance_var = ncfile.createVariable("hdrf", "f4", ("x1", "x2", 'ch'), fill_value=np.nan)
         if flxdn is not None:
             down_flux_var = ncfile.createVariable("fluxdn", "f4", ('ch'))
         if wvlc is not None:
