@@ -87,9 +87,13 @@ static PyObject* gridding2d_weight(PyObject *self, PyObject *args) {
             int x_idx = (int)ceil((x_data[i] - x_min) / x_bin_size) - 1;
             int y_idx = (int)ceil((y_data[i] - y_min) / y_bin_size) - 1;
 
-            // Apply cyclic boundary wrapping
-            x_idx = (x_idx + x_bins) % x_bins;
-            y_idx = (y_idx + y_bins) % y_bins;
+            // // Apply cyclic boundary wrapping
+            // x_idx = (x_idx + x_bins) % x_bins;
+            // y_idx = (y_idx + y_bins) % y_bins;
+            // Ignore values outside of the boundary
+            if (x_idx < 0 || x_idx >= x_bins || y_idx < 0 || y_idx >= y_bins) {
+                continue;
+            }
 
             hist_data[x_idx * y_bins + y_idx] += weights_data[i];
         }
@@ -98,9 +102,12 @@ static PyObject* gridding2d_weight(PyObject *self, PyObject *args) {
             int x_idx = (int)ceil((x_data[i] - x_min) / x_bin_size) - 1;
             int y_idx = (int)ceil((y_data[i] - y_min) / y_bin_size) - 1;
 
-            // Apply cyclic boundary wrapping
-            x_idx = (x_idx + x_bins) % x_bins;
-            y_idx = (y_idx + y_bins) % y_bins;
+            // // Apply cyclic boundary wrapping
+            // x_idx = (x_idx + x_bins) % x_bins;
+            // y_idx = (y_idx + y_bins) % y_bins;
+            if (x_idx < 0 || x_idx >= x_bins || y_idx < 0 || y_idx >= y_bins) {
+                continue;
+            }
 
             for (int w = 0; w < n_weights; w++) {
                 hist_data[(x_idx * y_bins + y_idx) * n_weights + w] += weights_data[i * n_weights + w];
@@ -149,9 +156,13 @@ static PyObject* gridding2d_count(PyObject *self, PyObject *args) {
         int x_idx = (int)ceil((x_data[i] - x_min) / x_bin_size) - 1;
         int y_idx = (int)ceil((y_data[i] - y_min) / y_bin_size) - 1;
 
-        // Apply cyclic boundary wrapping
-        x_idx = (x_idx + x_bins) % x_bins;
-        y_idx = (y_idx + y_bins) % y_bins;
+        // // Apply cyclic boundary wrapping
+        // x_idx = (x_idx + x_bins) % x_bins;
+        // y_idx = (y_idx + y_bins) % y_bins;
+        // Ignore values outside of the boundary
+        if (x_idx < 0 || x_idx >= x_bins || y_idx < 0 || y_idx >= y_bins) {
+            continue;
+        }
 
         hist_data[x_idx * y_bins + y_idx] += 1;  // Integer addition
     }
