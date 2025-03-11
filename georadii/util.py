@@ -203,6 +203,30 @@ def calc_viewing_angles(lon, lat, lon_air, lat_air, alt_air):
     phi[phi < 0.] += 360.
     return theta, phi # vza, vaa (deg)
 
+def calc_bearing(lon1, lat1, lon2, lat2, use_geod=False):
+    if use_geod:
+        from pyproj import Geod as geod
+        g = geod(ellps='WGS84')
+        fwd_az1, fwd_az2, dist = g.inv(lon1, lat1, lon2, lat2)
+        fwd_az1 = (fwd_az1 + 180.) % 360. - 180.
+    else:
+        earth_a = 6378137.0 # m (equatorial radius)
+        earth_b = 6356752.3 # m (polar radius)
+        lon1 = np.deg2rad(lon1)
+        lat1 = np.deg2rad(lat1)
+        lon2 = np.deg2rad(lon2)
+        lat2 = np.deg2rad(lat2)
+        dlon = lon2 - lon1
+        x = np.sin(dlon)*np.cos(lat2)
+        y = np.cos(lat1)*np.sin(lat2) - np.sin(lat1)*np.cos(lat2)*np.cos(dlon)
+        fwd_az1 = np.rad2deg(np.arctan2(x, y))
+        fwd_az1 = (fwd_az1 + 360.) % 360.
+        a = np.sin((lat2 - lat1)*0.5)**2. + np.cos(lat1)*np.cos(lat2)*np.sin(dlon*0.5)**2.
+        c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
+        r_e = np.sqrt((earth_a*np.cos(lat1))**2. + (earth_b*np.sin(lat1))**2.)
+        dist = r_e*c
+    return fwd_az1, dist
+
 def get_spec_resp(spec_resp_txt, instrument='cam'):
     if instrument == 'cam':
         nch = 3
