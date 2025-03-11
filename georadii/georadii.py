@@ -97,7 +97,7 @@ class Georadii:
 		self.latlon_data = self.LatLon(cam_class.img, latlon_meta)
 		return latlon_meta['longeo'], latlon_meta['latgeo']
 		
-	def gridded(self, gridmeta=None, enable_mp=False, use_c=True): # Note: multiprocessing is currently slow
+	def gridded(self, gridmeta=None, enable_mp=False, use_c=True, dryrun=False): # Note: multiprocessing is currently slow
 		latlon_class = self.latlon_data
 		grid_meta = {}
 		grid_meta['transform'] = {	'type'        : 'rotate', # Rotate the lat/lon coordinate system so that the grids are more regular
@@ -120,54 +120,76 @@ class Georadii:
 		scatdat_y = latlon_class.latgeo
 		scatdat_data = latlon_class.img['data']
 		scatdat_valid = latlon_class.valid_domain
+
 		if grid_meta['transform']['type'] == 'rotate': # Rotate the lat/lon coordinate system so that the grids are more regular
 			lon_center, lat_center = grid_meta['transform']['center']
 			inclination = grid_meta['transform']['inclination']
-			tmp_scatdat_y, tmp_scatdat_x = self.rotate_coordinates(scatdat_y, scatdat_x, lat_center, lon_center, inclination)
-			if gridmeta is None:
+			tmp_scatdat_y, tmp_scatdat_x = Georadii.rotate_coordinates(scatdat_y, scatdat_x, lat_center, lon_center, inclination)
+			if grid_meta is None:
 				grid_xmin, grid_xmax, grid_dx = np.nanmin(tmp_scatdat_x), np.nanmax(tmp_scatdat_x), (np.nanmax(tmp_scatdat_x) - np.nanmin(tmp_scatdat_x))/250.
 				grid_ymin, grid_ymax, grid_dy = np.nanmin(tmp_scatdat_y), np.nanmax(tmp_scatdat_y), (np.nanmax(tmp_scatdat_y) - np.nanmin(tmp_scatdat_y))/250.
+				grid_meta['x'] = {'min' : grid_xmin, 'max' : grid_xmax, 'incr': grid_dx}
+				grid_meta['y'] = {'min' : grid_ymin, 'max' : grid_ymax, 'incr': grid_dy}
 			else:
 				grid_xmin, grid_xmax, grid_dx = grid_meta['x']['min'], grid_meta['x']['max'], grid_meta['x']['incr']
 				grid_ymin, grid_ymax, grid_dy = grid_meta['y']['min'], grid_meta['y']['max'], grid_meta['y']['incr']
-			grid_xarr = np.arange(grid_xmin, grid_xmax, grid_dx) + 0.5*grid_dx
-			grid_yarr = np.arange(grid_ymin, grid_ymax, grid_dy) + 0.5*grid_dy
-			tmp_grid_xx, tmp_grid_yy = np.meshgrid(grid_xarr, grid_yarr)
-			grid_yy, grid_xx = self.inverse_rotate_coordinates(tmp_grid_yy, tmp_grid_xx, lat_center, lon_center, inclination)
 		
 		elif grid_meta['transform']['type'] == 'ease2': # EASE 2.0 grid
-			tmp_scatdat_x, tmp_scatdat_y = self.ease2_coordinates(scatdat_x, scatdat_y)
+			tmp_scatdat_x, tmp_scatdat_y = Georadii.ease2_coordinates(scatdat_x, scatdat_y)
 			grid_xmin = grid_meta['x'].get('min', np.nanmin(tmp_scatdat_x))
 			grid_xmax = grid_meta['x'].get('max', np.nanmax(tmp_scatdat_x))
 			grid_dx   = grid_meta['x'].get('incr', (np.nanmax(tmp_scatdat_x) - np.nanmin(tmp_scatdat_x)) / 250.)
 			grid_ymin = grid_meta['y'].get('min', np.nanmin(tmp_scatdat_y))
 			grid_ymax = grid_meta['y'].get('max', np.nanmax(tmp_scatdat_y))
 			grid_dy   = grid_meta['y'].get('incr', (np.nanmax(tmp_scatdat_y) - np.nanmin(tmp_scatdat_y)) / 250.)
-			grid_xarr = np.arange(grid_xmin, grid_xmax, grid_dx) + 0.5*grid_dx
-			grid_yarr = np.arange(grid_ymin, grid_ymax, grid_dy) + 0.5*grid_dy
-			tmp_grid_xx, tmp_grid_yy = np.meshgrid(grid_xarr, grid_yarr)
-			grid_xx, grid_yy = self.inverse_ease2_coordinates(tmp_grid_xx, tmp_grid_yy)
+			grid_meta['x'] = {'min' : grid_xmin, 'max' : grid_xmax, 'incr': grid_dx}
+			grid_meta['y'] = {'min' : grid_ymin, 'max' : grid_ymax, 'incr': grid_dy}
 
 		else:
 			tmp_scatdat_x, tmp_scatdat_y = scatdat_x, scatdat_y
 			grid_xmin, grid_xmax, grid_dx = grid_meta['x']['min'], grid_meta['x']['max'], grid_meta['x']['incr']
 			grid_ymin, grid_ymax, grid_dy = grid_meta['y']['min'], grid_meta['y']['max'], grid_meta['y']['incr']
+		
+		grid_xx, grid_yy = Georadii.grid_define(grid_meta)
+		
+		if dryrun:
+			return grid_xx, grid_yy
+		else:
+			grid_dim = (grid_xx.shape[0], grid_xx.shape[1], scatdat_data.shape[2] if len(scatdat_data.shape) > 2 else 0)
+
+			datsum, ncount = self.gridding2d_core(tmp_scatdat_x, tmp_scatdat_y, scatdat_data, grid_xmin, grid_xmax, grid_dx, grid_ymin, grid_ymax, grid_dy, grid_dim, scatdat_valid=scatdat_valid, enable_mp=enable_mp, use_c=use_c)
+
+			datout = np.zeros_like(datsum)
+			if grid_dim[2] == 0:
+				datout[:, :] = datsum[:, :]/np.float64(ncount)
+			elif grid_dim[2] >= 1:
+				for ich in range(grid_dim[2]):
+					datout[:, :, ich] = datsum[:, :, ich]/np.float64(ncount)  # divide by the number of pixels to average the image values
+			
+			return grid_xx, grid_yy, datout, ncount
+	
+	@staticmethod
+	def grid_define(grid_meta):
+		grid_xmin, grid_xmax, grid_dx = grid_meta['x']['min'], grid_meta['x']['max'], grid_meta['x']['incr']
+		grid_ymin, grid_ymax, grid_dy = grid_meta['y']['min'], grid_meta['y']['max'], grid_meta['y']['incr']
+		if grid_meta['transform']['type'] == 'rotate': # Rotate the lat/lon coordinate system so that the grids are more regular
+			lon_center, lat_center = grid_meta['transform']['center']
+			inclination = grid_meta['transform']['inclination']
+			grid_xarr = np.arange(grid_xmin, grid_xmax, grid_dx) + 0.5*grid_dx
+			grid_yarr = np.arange(grid_ymin, grid_ymax, grid_dy) + 0.5*grid_dy
+			tmp_grid_xx, tmp_grid_yy = np.meshgrid(grid_xarr, grid_yarr)
+			grid_yy, grid_xx = Georadii.inverse_rotate_coordinates(tmp_grid_yy, tmp_grid_xx, lat_center, lon_center, inclination)
+		
+		elif grid_meta['transform']['type'] == 'ease2': # EASE 2.0 grid
+			tmp_grid_xx, tmp_grid_yy = np.meshgrid(grid_xarr, grid_yarr)
+			grid_xx, grid_yy = Georadii.inverse_ease2_coordinates(tmp_grid_xx, tmp_grid_yy)
+
+		else:
 			grid_xarr = np.arange(grid_xmin, grid_xmax, grid_dx) + 0.5*grid_dx
 			grid_yarr = np.arange(grid_ymin, grid_ymax, grid_dy) + 0.5*grid_dy
 			grid_xx, grid_yy = np.meshgrid(grid_xarr, grid_yarr)
 		
-		grid_dim = (grid_xx.shape[0], grid_xx.shape[1], scatdat_data.shape[2] if len(scatdat_data.shape) > 2 else 0)
-
-		datsum, ncount = self.gridding2d_core(tmp_scatdat_x, tmp_scatdat_y, scatdat_data, grid_xmin, grid_xmax, grid_dx, grid_ymin, grid_ymax, grid_dy, grid_dim, scatdat_valid=scatdat_valid, enable_mp=enable_mp, use_c=use_c)
-
-		datout = np.zeros_like(datsum)
-		if grid_dim[2] == 0:
-			datout[:, :] = datsum[:, :]/np.float64(ncount)
-		elif grid_dim[2] >= 1:
-			for ich in range(grid_dim[2]):
-				datout[:, :, ich] = datsum[:, :, ich]/np.float64(ncount)  # divide by the number of pixels to average the image values
-		
-		return grid_xx, grid_yy, datout, ncount
+		return grid_xx, grid_yy
 	
 	def gridded_angular(self, gridmeta=None, enable_mp=False, use_c=True): # Note: multiprocessing is currently slow
 		cam_class = self.camera_data
