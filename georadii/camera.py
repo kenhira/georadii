@@ -648,6 +648,16 @@ class Camera_arcsix:
 			image = self.aircraft_shadow_mask(image)
 		return image, t_act
 
+	def hsk_from_fits(self, fits_filename):
+		if not os.path.exists(fits_filename):
+			message = 'Error: fits file {} not found.'.format(fits_filename)
+			raise OSError(message)
+		print('Reading {}'.format(fits_filename))
+		handle = fits.open(fits_filename)
+		fheader = handle[0].header
+		t_act, aircraft_status = self.interpolate_hsk_for_fits(fheader['DATE-OBS'])
+		return aircraft_status, t_act
+
 	# Read image file (Fits file format) and convert to radiance
 	def radiance_from_fits(self, fits_filename, flipud=None, fliplr=None, mask_fits_filename=None):
 		if flipud is None:
@@ -789,8 +799,35 @@ class Camera_arcsix:
 		# print('Time offset: %s' % to_s)
 		t_offset = datetime.timedelta(days=self.to_d, seconds=to_s)
 		t_act = t_fn + t_offset
-		hrs   = t_fn.hour + t_fn.minute/60. + t_fn.second/3600. + t_offset.total_seconds()/3600.
+		aircraft_status = self.interpolate_hsk(t_act)
+		return t_act, aircraft_status
+	
+	def interpolate_hsk_for_timestr(self, time_str):
+		t_fn  = datetime.datetime.strptime(self.date + ' ' + time_str, '%Y-%m-%d %H:%M:%S')
+		aircraft_status = self.interpolate_hsk(t_fn)
+		return aircraft_status
 
+	def interpolate_hsk_for_timestr_mid(self, time_str, time_str2):
+		t_fn  = datetime.datetime.strptime(self.date + ' ' + time_str, '%Y-%m-%d %H:%M:%S')
+		t_fn2 = datetime.datetime.strptime(self.date + ' ' + time_str2, '%Y-%m-%d %H:%M:%S')
+		aircraft_status = self.interpolate_hsk(t_fn + (t_fn2 - t_fn)/2.)
+		return aircraft_status
+
+	def interpolate_hsk_for_timestr_avg(self, time_str, time_str2):
+		t_fn  = datetime.datetime.strptime(self.date + ' ' + time_str, '%Y-%m-%d %H:%M:%S')
+		t_fn2 = datetime.datetime.strptime(self.date + ' ' + time_str2, '%Y-%m-%d %H:%M:%S')
+		seconds_diff = int((t_fn2 - t_fn).total_seconds())
+		interpolated_statuses = []
+		for sec in range(seconds_diff + 1):
+			current_time = t_fn + datetime.timedelta(seconds=sec)
+			interpolated_statuses.append(self.interpolate_hsk(current_time))
+		averaged_status = {}
+		for key in interpolated_statuses[0].keys():
+			averaged_status[key] = np.mean([status[key] for status in interpolated_statuses])
+		return averaged_status
+	
+	def interpolate_hsk(self, t_dt):
+		hrs   = t_dt.hour + t_dt.minute/60. + t_dt.second/3600.
 		lat  = np.interp(hrs, self.hrss, self.lats) # interpolate to find values for the time at which the image was taken
 		lon  = np.interp(hrs, self.hrss, self.lons)
 		alt  = np.interp(hrs, self.hrss, self.alts)
@@ -798,7 +835,7 @@ class Camera_arcsix:
 		rol  = np.interp(hrs, self.hrss, self.rols)
 		hed  = np.interp(hrs, self.hrss, self.heds)
 
-		when = t_act.replace(tzinfo=datetime.timezone.utc)
+		when = t_dt.replace(tzinfo=datetime.timezone.utc)
 		sza  = 90. - pysolar.solar.get_altitude(lat, lon, when)
 		saa  = pysolar.solar.get_azimuth( lat, lon, when, elevation=alt)
 
@@ -810,4 +847,4 @@ class Camera_arcsix:
 							'alt'		:	alt,
 							'sza'		:	sza,
 							'saa'		:	saa}
-		return t_act, aircraft_status
+		return aircraft_status
