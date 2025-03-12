@@ -119,6 +119,7 @@ class Georadii:
 		scatdat_x = latlon_class.longeo
 		scatdat_y = latlon_class.latgeo
 		scatdat_data = latlon_class.img['data']
+		scatdat_flag = latlon_class.img.get('flag', None)
 		scatdat_valid = latlon_class.valid_domain
 
 		if grid_meta['transform']['type'] == 'rotate': # Rotate the lat/lon coordinate system so that the grids are more regular
@@ -166,7 +167,12 @@ class Georadii:
 				for ich in range(grid_dim[2]):
 					datout[:, :, ich] = datsum[:, :, ich]/np.float64(ncount)  # divide by the number of pixels to average the image values
 			
-			return grid_xx, grid_yy, datout, ncount
+			if scatdat_flag is not None:
+				datflg = self.gridding2d_flag_or(tmp_scatdat_x, tmp_scatdat_y, scatdat_flag, grid_xmin, grid_xmax, grid_dx, grid_ymin, grid_ymax, grid_dy, grid_dim, scatdat_valid=scatdat_valid, enable_mp=enable_mp, use_c=use_c)
+				datflg[(datflg == 0) & (ncount == 0)] |= 2
+				return grid_xx, grid_yy, datout, ncount, datflg
+			else:
+				return grid_xx, grid_yy, datout, ncount
 	
 	@staticmethod
 	def grid_define(grid_meta):
@@ -320,6 +326,46 @@ class Georadii:
 		return datsum, ncount
 	
 	@staticmethod
+	def gridding2d_flag_or(scatdat_x, scatdat_y, scatdat_flag, grid_xmin, grid_xmax, grid_dx, grid_ymin, grid_ymax, grid_dy, grid_dim, scatdat_valid=None, enable_mp=False, use_c=True):
+		if use_c:
+			from georadii.compute import gridding2d_flag
+			# if scatdat_valid is not None:
+			# 	g1 = scatdat_x[scatdat_valid]
+			# 	g2 = scatdat_y[scatdat_valid]
+			# 	scatdat_validata = scatdat_flag[scatdat_valid]
+			# else:
+			# 	g1 = scatdat_x.flatten()
+			# 	g2 = scatdat_y.flatten()
+			# 	scatdat_validata = scatdat_flag.flatten() if grid_dim[2] == 0 else scatdat_flag.reshape(g1.shape[0], scatdat_flag.shape[2])
+			g1 = scatdat_x.flatten()
+			g2 = scatdat_y.flatten()
+			scatdat_validata = scatdat_flag.flatten()
+			# g1 = g1.astype(np.float64)
+			# g2 = g2.astype(np.float64)
+			# scatdata_validata = scatdat_validata
+			datflg = gridding2d_flag(g2, g1, scatdat_validata.copy().astype(np.uint8), grid_ymin, grid_ymax, grid_dy, grid_xmin, grid_xmax, grid_dx)#.transpose(0, 1, 2)
+			datflg = datflg.astype(np.int32)
+		else:
+			indgx = np.int_(((scatdat_x - grid_xmin + 0.5*grid_dx)//grid_dx + grid_dim[1]) % grid_dim[1])
+			indgy = np.int_(((scatdat_y - grid_ymin + 0.5*grid_dy)//grid_dy + grid_dim[0]) % grid_dim[0])
+			x1temp, x2temp = np.meshgrid(np.arange(indgy.shape[1]), np.arange(indgy.shape[0]))
+			x1 = x1temp
+			x2 = x2temp
+			if enable_mp:
+				nproc = 8
+				x1_ch = np.array_split(x1, nproc, axis=0)
+				x2_ch = np.array_split(x2, nproc, axis=0)
+				args = [(x1_ch[ich], x2_ch[ich], indgy, indgx, scatdat_flag.copy().astype(np.uint8), grid_dim) for ich in range(nproc)]
+				with mp.Pool(processes=nproc) as pool:
+					results = pool.map(Georadii.flag_or, args)
+				value_list = zip(*results)
+				value_stack = np.stack(value_list, axis=-1)
+				datflg = np.sum(value_stack, axis=3)
+			else:
+				datflg = Georadii.flag_or((x1, x2, indgy, indgx, scatdat_flag.copy().astype(np.uint8), grid_dim))
+		return datflg
+	
+	@staticmethod
 	def count_and_sum(arg):
 		x1, x2, ap, aq, av, dim_grid = arg
 		ndimg1, ndimg2, ndimg3 = dim_grid
@@ -335,6 +381,15 @@ class Georadii:
 				cnt[ap[i2, i1], aq[i2, i1]] += 1
 				val[ap[i2, i1], aq[i2, i1], :] += av[i2, i1, :]
 		return cnt, val
+	
+	@staticmethod
+	def flag_or(arg):
+		x1, x2, ap, aq, av, dim_grid = arg
+		ndimg1, ndimg2, ndimg3 = dim_grid
+		val = np.zeros((ndimg1, ndimg2), dtype=np.uint8)
+		for i1, i2 in zip(x1.flatten(), x2.flatten()):
+			val[ap[i2, i1], aq[i2, i1]] |= av[i2, i1]
+		return val
 
 
 	def plot(self):
@@ -686,15 +741,11 @@ class Georadii:
 			self.lat_tmparr = lat*np.ones_like(self.img['data'][:, :, 0])
 			self.lon_tmparr = lon*np.ones_like(self.img['data'][:, :, 0])
 			self.longeo, self.latgeo, back_az = g.fwd(self.lon_tmparr, self.lat_tmparr, self.ang_deg, self.dist)
-			#self.longeo = np.ma.masked_where(self.r_ > self.r_incl, self.longeo)
-			#self.latgeo = np.ma.masked_where(self.r_ > self.r_incl, self.latgeo)	
-			# self.longeo[self.r_ > self.r_incl] = np.nan
-			# self.latgeo[self.r_ > self.r_incl] = np.nan
-			self.longeo[~self.valid_domain] = np.nan
-			self.latgeo[~self.valid_domain] = np.nan
-			self.distmax = 30000.
-			self.longeo[self.dist > self.distmax] = np.nan
-			self.latgeo[self.dist > self.distmax] = np.nan
+			# self.longeo[~self.valid_domain] = np.nan
+			# self.latgeo[~self.valid_domain] = np.nan
+			# self.distmax = 30000.
+			# self.longeo[self.dist > self.distmax] = np.nan
+			# self.latgeo[self.dist > self.distmax] = np.nan
 			return self.longeo, self.latgeo
 
 		def rad_conversion(self, radcal_dict, exptime):

@@ -170,10 +170,67 @@ static PyObject* gridding2d_count(PyObject *self, PyObject *args) {
     return hist_array;
 }
 
+// Function to compute 2D histogram with binary flag output
+static PyObject* gridding2d_flag(PyObject *self, PyObject *args) {
+    PyArrayObject *x_array, *y_array, *flag_array;
+    double x_min, x_max, x_bin_size, y_min, y_max, y_bin_size;
+
+    // Parse NumPy array inputs and binning parameters
+    if (!PyArg_ParseTuple(args, "O!O!O!dddddd", 
+                          &PyArray_Type, &x_array, 
+                          &PyArray_Type, &y_array, 
+                          &PyArray_Type, &flag_array,
+                          &x_min, &x_max, &x_bin_size, 
+                          &y_min, &y_max, &y_bin_size)) {
+        return NULL;
+    }
+
+    // Ensure input arrays are of type double (float64) and flag array is of type int (uint8)
+    if (PyArray_TYPE(x_array) != NPY_DOUBLE || PyArray_TYPE(y_array) != NPY_DOUBLE || PyArray_TYPE(flag_array) != NPY_UINT8) {
+        PyErr_SetString(PyExc_TypeError, "x and y arrays must be of type float64 (double) and flag array must be of type uint8");
+        return NULL;
+    }
+
+    Py_ssize_t num_points = PyArray_SIZE(x_array);
+    if (num_points != PyArray_SIZE(y_array) || num_points != PyArray_SIZE(flag_array)) {
+        PyErr_SetString(PyExc_ValueError, "x, y, and flag arrays must have the same length");
+        return NULL;
+    }
+
+    double *x_data = (double *)PyArray_DATA(x_array);
+    double *y_data = (double *)PyArray_DATA(y_array);
+    uint8_t *flag_data = (uint8_t *)PyArray_DATA(flag_array);
+
+    int x_bins = (int)ceil((x_max - x_min) / x_bin_size);
+    int y_bins = (int)ceil((y_max - y_min) / y_bin_size);
+
+    npy_intp dims[2] = {x_bins, y_bins};
+    PyObject *hist_array = PyArray_SimpleNew(2, dims, NPY_UINT8);
+    uint8_t *hist_data = (uint8_t *)PyArray_DATA((PyArrayObject *)hist_array);
+
+    // Explicitly initialize histogram to zero using memset
+    memset(hist_data, 0, x_bins * y_bins * sizeof(uint8_t));
+
+    for (Py_ssize_t i = 0; i < num_points; i++) {
+        int x_idx = (int)ceil((x_data[i] - x_min) / x_bin_size) - 1;
+        int y_idx = (int)ceil((y_data[i] - y_min) / y_bin_size) - 1;
+
+        // Ignore values outside of the boundary
+        if (x_idx < 0 || x_idx >= x_bins || y_idx < 0 || y_idx >= y_bins) {
+            continue;
+        }
+
+        hist_data[x_idx * y_bins + y_idx] |= flag_data[i];  // Apply binary OR to accumulate flags
+    }
+
+    return hist_array;
+}
+
 // Register both functions
 static PyMethodDef ComputeMethods[] = {
     {"gridding2d_weight", gridding2d_weight, METH_VARARGS, "Computes a weighted 2D histogram"},
     {"gridding2d_count", gridding2d_count, METH_VARARGS, "Computes a 2D histogram with integer counts"},
+    {"gridding2d_flag", gridding2d_flag, METH_VARARGS, "Computes a 2D histogram with binary flags"},
     {NULL, NULL, 0, NULL}
 };
 

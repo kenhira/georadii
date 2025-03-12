@@ -641,11 +641,11 @@ class Camera_arcsix:
 		image, header = self.radiance_from_fits(fits_filename, flipud=flipud, fliplr=fliplr, mask_fits_filename=mask_fits_filename)
 		t_act, aircraft_status = self.interpolate_hsk_for_fits(header['DATE-OBS'])
 		vza, vaa = self.calc_viewing_geometry(aircraft_status['rol'], aircraft_status['pit'], aircraft_status['hed'])
+		image['flag'][np.isnan(vza)] |= 4 # Oblique view flag
 		image['geometry'] = {'vza': vza, 'vaa': vaa, 'centerpix': self.centerpix, 'type' : 'viewing geometry', 'unit' : 'radian'}
 		image['t_act'] = t_act
 		image['aircraft_status'] = aircraft_status
-		if mask_aircraft_shadow:
-			image = self.aircraft_shadow_mask(image)
+		image = self.aircraft_shadow_mask(image, mask_aircraft_shadow)
 		return image, t_act
 
 	def hsk_from_fits(self, fits_filename):
@@ -677,6 +677,8 @@ class Camera_arcsix:
 		if fliplr:
 			fimg = np.fliplr(fimg)
 		
+		fflg = np.zeros(fimg.shape[:2], dtype=np.uint8)
+		
 		fheader = handle[0].header
 		
 		if mask_fits_filename is not None:
@@ -693,11 +695,12 @@ class Camera_arcsix:
 				fmsk = np.fliplr(fmsk)
 			fheader_msk = handle_msk[0].header
 
+			fflg[fmsk > 0.] |= 1 # aircraft body obstruction flag
 			fimg[fmsk > 0.] = np.nan
 		
-		img = {'data': fimg, 'shape': fimg.shape, 'type': 'count', 'unit': 'unitless', 'wavelength': None}
+		img = {'data': fimg, 'flag': fflg, 'shape': fimg.shape, 'type': 'count', 'unit': 'unitless', 'wavelength': None}
 
-		img_rad = self.rad_conversion(img, fheader['EXPTIME'], radcal_dict=self.rad_coef, wvlc_list=self.rad_wvlc, saturation_val=0.95*(2**fheader['BITPIX']))
+		img_rad = self.rad_conversion(img, fheader['EXPTIME'], radcal_dict=self.rad_coef, wvlc_list=self.rad_wvlc, saturation_val=0.9*(2**fheader['BITPIX']))
 		
 		return img_rad, fheader
 	
@@ -726,12 +729,19 @@ class Camera_arcsix:
 		print('Radiometric calibration coefficients are being applied...')
 		if radcal_dict['type']['input'].lower() == 'count per time' and img['type'].lower() == 'count':
 			if saturation_val is not None:
+				img['flag'][img['data'][:, :, 0] > saturation_val] |= 32 # saturation flag
+				img['flag'][img['data'][:, :, 1] > saturation_val] |= 32
+				img['flag'][img['data'][:, :, 2] > saturation_val] |= 32
 				img['data'][img['data'] > saturation_val] = np.nan
 			img['data'][:, :, 0] =  img['data'][:, :, 0] * radcal_dict['red'][:, :]   / exptime
 			img['data'][:, :, 1] =  img['data'][:, :, 1] * radcal_dict['green'][:, :] / exptime
 			img['data'][:, :, 2] =  img['data'][:, :, 2] * radcal_dict['blue'][:, :]  / exptime
 			img['type'] = 'radiance'
 			img['unit'] = 'W m^(-2) nm^(-1) sr^(-1)'
+			img['flag'][np.isnan(radcal_dict['red'])]   |= 16 # Radimetric calibration out-of-bounds flag
+			img['flag'][np.isnan(radcal_dict['green'])] |= 16 # Radimetric calibration out-of-bounds flag
+			img['flag'][np.isnan(radcal_dict['blue'])]  |= 16 # Radimetric calibration out-of-bounds flag
+
 		else:
 			print(' !!! Image and calibration data types do not match! <%s> vs <%s> Skipping... ' \
 						% (radcal_dict['type']['input'].lower()))
@@ -752,7 +762,7 @@ class Camera_arcsix:
 		vaa = vaa.filled(np.nan)
 		return vza, vaa
 	
-	def aircraft_shadow_mask(self, image):
+	def aircraft_shadow_mask(self, image, mask_bool):
 		def dist(a1, a2):
 			dif = (a1 - a2) % (2.*np.pi)
 			return np.minimum(dif, 2.*np.pi - dif)
@@ -768,7 +778,9 @@ class Camera_arcsix:
 		target_vza = sza
 		target_vaa = saa + np.pi
 		in_shadow = (vza - target_vza)**2./(dvza)**2. + dist(vaa, target_vaa)**2./(dvaa)**2. < 1
-		image['data'][in_shadow] = np.nan
+		image['flag'][in_shadow] |= 8 # Aircraft shadow flag
+		if mask_bool:
+			image['data'][in_shadow] = np.nan
 		return image
 
 	def R_NED2Cam(self, roll, pitch, yaw): #roll, pitch, yaw [radian]
