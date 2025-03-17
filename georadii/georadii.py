@@ -187,6 +187,8 @@ class Georadii:
 			grid_yy, grid_xx = Georadii.inverse_rotate_coordinates(tmp_grid_yy, tmp_grid_xx, lat_center, lon_center, inclination)
 		
 		elif grid_meta['transform']['type'] == 'ease2': # EASE 2.0 grid
+			grid_xarr = np.arange(grid_xmin, grid_xmax, grid_dx) + 0.5*grid_dx
+			grid_yarr = np.arange(grid_ymin, grid_ymax, grid_dy) + 0.5*grid_dy
 			tmp_grid_xx, tmp_grid_yy = np.meshgrid(grid_xarr, grid_yarr)
 			grid_xx, grid_yy = Georadii.inverse_ease2_coordinates(tmp_grid_xx, tmp_grid_yy)
 
