@@ -9,6 +9,7 @@ import netCDF4 as nc
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 from matplotlib.ticker import FixedLocator
+from scipy.interpolate import griddata
 
 # Read housekeeping file (HDF5 binary data format)
 def read_hsk_camp2ex(hsk_filename):
@@ -645,3 +646,62 @@ def makedir_numbered(dirname):
         dir2name = '%s/%04d' %(dirname, fnum)
     os.makedirs(dir2name)
     return dir2name
+
+def calc_bhr_from_hdrf(zen2d, razi2d, hdrf_2d, nan_treatment='remove'):
+    hdrf2d = np.copy(hdrf_2d)
+    zen_rad = np.deg2rad(zen2d)
+    razi_rad = np.deg2rad(razi2d)
+    sin_zen = np.sin(zen_rad)
+    cos_zen = np.cos(zen_rad)
+    dzen = np.gradient(zen_rad, axis=0)
+    # dmu = -np.gradient(cos_zen, axis=0)
+    drazi = np.gradient(razi_rad, axis=1)
+    valid = ~np.isnan(hdrf2d)
+    if nan_treatment == 'zero': # ignore NaN values in HDRF (can result in underestimation of BHR)
+        integrand = hdrf2d*sin_zen*cos_zen*dzen*drazi
+        # integrand = hdrf2d*cos_zen*dmu*drazi
+        bhr = np.nansum(integrand)/np.pi
+    elif nan_treatment == 'remove': # exclude NaN values in HDRF
+        integrand  = hdrf2d*sin_zen*cos_zen*dzen*drazi
+        # integrand = hdrf2d*cos_zen*dmu*drazi
+        integrand2 = sin_zen*cos_zen*dzen*drazi
+        # integrand2 = cos_zen*dmu*drazi
+        bhr = np.sum(integrand[valid])/np.sum(integrand2[valid])
+    elif nan_treatment == 'nearest_interp': # interpolate NaN values in HDRF
+        hdrf2d_missing = griddata((zen2d[valid], razi2d[valid]), hdrf2d[valid], (zen2d[~valid], razi2d[~valid]), method='nearest')
+        hdrf2d[~valid] = hdrf2d_missing
+        integrand  = hdrf2d*sin_zen*cos_zen*dzen*drazi
+        # integrand = hdrf2d*cos_zen*dmu*drazi
+        integrand2 = sin_zen*cos_zen*dzen*drazi
+        # integrand2 = cos_zen*dmu*drazi
+        bhr = np.sum(integrand)/np.sum(integrand2)
+    return bhr
+
+def calc_flx_from_rad(zen2d, razi2d, rad_2d, nan_treatment='remove'):
+    rad2d = np.copy(rad_2d)
+    zen_rad = np.deg2rad(zen2d)
+    razi_rad = np.deg2rad(razi2d)
+    sin_zen = np.sin(zen_rad)
+    cos_zen = np.cos(zen_rad)
+    dzen = np.gradient(zen_rad, axis=0)
+    # dmu = -np.gradient(cos_zen, axis=0)
+    drazi = np.gradient(razi_rad, axis=1)
+    # drazi = np.deg2rad(2.)
+    valid = ~np.isnan(rad2d)
+    if nan_treatment == 'zero':
+        integrand = rad2d*sin_zen*cos_zen*dzen*drazi
+        # integrand = rad2d*cos_zen*dmu*drazi
+        flx = np.nansum(integrand)
+    elif nan_treatment == 'remove': # exclude NaN values in HDRF
+        integrand  = rad2d*sin_zen*cos_zen*dzen*drazi
+        # integrand = rad2d*cos_zen*dmu*drazi
+        integrand2 = sin_zen*cos_zen*dzen*drazi
+        # integrand2 = cos_zen*dmu*drazi
+        flx = np.sum(integrand[valid])/np.sum(integrand2[valid])*np.pi
+    elif nan_treatment == 'nearest_interp':
+        rad2d_missing = griddata((zen2d[valid], razi2d[valid]), rad2d[valid], (zen2d[~valid], razi2d[~valid]), method='nearest')
+        rad2d[~valid] = rad2d_missing
+        integrand  = rad2d*sin_zen*cos_zen*dzen*drazi
+        # integrand = rad2d*cos_zen*dmu*drazi
+        flx = np.sum(integrand)
+    return flx
