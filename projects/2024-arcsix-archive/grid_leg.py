@@ -30,6 +30,11 @@ if __name__ == "__main__":
     # end_time   = '13:17:22'
     start_time = '14:16:01'
     end_time   = '14:16:30'
+    # start_time = '16:16:01'
+    # end_time   = '14:16:30'
+    # date       = '2024-06-06'
+    # start_time = '16:16:00' ; end_time = '16:17:00'
+    # # start_time = '16:41:46' ; end_time = '16:47:26'
 
     # Make the directory to store the output pngs
     dirname = 'out_gridding'
@@ -40,7 +45,9 @@ if __name__ == "__main__":
     camtool = Camera_arcsix(date)
 
     # Load housekeeping file needed for identifying the aircraft status
-    camtool.load_hsk(location='/Users/kehi6101/Downloads/ARCSIX_HSK/')
+    camtool.load_hsk(location='%s/Downloads/ARCSIX_HSK/' % (os.getenv('HOME')))
+
+    # camtool.alts -= 20. # Correct the altitudes
 
     # Obtain the meta data of the leg
     leg_bearing, dist_2x = calc_bearing( camtool.interpolate_hsk_for_timestr(start_time)['lon'], 
@@ -122,6 +129,9 @@ if __name__ == "__main__":
                                 rad_geom['aircraft_status']['alt'])
         
         imgout_agg[nearest_fits == ifits]   = imgout_camera[nearest_fits == ifits]
+        ich = ifits % 3
+        # imgout_agg[nearest_fits == ifits, ich] = imgout_camera[nearest_fits == ifits, 1]
+        # imgout_agg[~np.isnan(imgout_camera[:, :, 1]), ich] = imgout_camera[~np.isnan(imgout_camera[:, :, 1]), 1]
         flgout_agg[nearest_fits == ifits]   = flgout_camera[nearest_fits == ifits]
         vza_grid_agg[nearest_fits == ifits] = vza_grid[nearest_fits == ifits]
         vaa_grid_agg[nearest_fits == ifits] = vaa_grid[nearest_fits == ifits]
@@ -145,6 +155,7 @@ if __name__ == "__main__":
 
     alpha = 1.0
     amp = 0.4
+    # amp = 0.2
     img_trans = np.zeros((imgout_agg.shape[0], imgout_agg.shape[1], 4))
     out_array1 = amp*imgout_agg[:, :, :]/np.nanmean(imgout_agg[:, :, :])
     img_trans[:, :, 0:3] = np.where(out_array1 > 1., 1., out_array1)
@@ -170,7 +181,7 @@ if __name__ == "__main__":
     fig.savefig(fn_out, dpi=300)
 
 
-    fig2  = plt.figure(figsize=(12, 10))
+    fig2  = plt.figure(figsize=(18, 15))
     ax1 = fig2.add_subplot(211, projection=cartopy_proj)
     mesh1 = ax1.pcolormesh(lon_xx, lat_yy, flgout_agg, transform=ccrs.PlateCarree(), zorder=10)
     g1 = ax1.gridlines(lw=0.5, color='gray', draw_labels=True, ls='-')
@@ -193,5 +204,5 @@ if __name__ == "__main__":
 
     fig2.suptitle('Gridded camera image: ' + date + ' ' + start_time + '-' + end_time)
     fn_out2 = '%s/%s_%s_%s_misc.png' % (dir2name, date.replace("-", ""), start_time.replace(":", ""), end_time.replace(":", ""))
-    fig2.savefig(fn_out2, dpi=300)
+    fig2.savefig(fn_out2, dpi=1200)
 
