@@ -45,7 +45,7 @@ if __name__ == "__main__":
     camtool = Camera_arcsix(date)
 
     # Load housekeeping file needed for identifying the aircraft status
-    camtool.load_hsk(location='%s/Downloads/ARCSIX_HSK/' % (os.getenv('HOME')))
+    camtool.load_aircraft(location='%s/Downloads/ARCSIX_HSK/' % (os.getenv('HOME')))
 
     # camtool.alts -= 20. # Correct the altitudes
 

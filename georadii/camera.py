@@ -452,34 +452,98 @@ class Camera_arcsix:
 			else:
 				print('Camera images for [%s]' % self._flights[date]['description'])
 	
-	def load_hsk(self, location='argus'):
-		if location == 'argus':
-			path = '/Volumes/argus/field/arcsix/processed'
-		else:
-			path = location
-		yyyy, mm, dd = self.date.split('-')
-		hsk_fname = 'ARCSIX-HSK_P3B_%s%s%s_*.h5' % (yyyy, mm, dd)
-		hsk_path = os.path.join(path, hsk_fname)
-		hsk_files  = glob.glob(hsk_path)
-		if len(hsk_files) == 0:
-			message = 'Error [Meta_arcsix.load_hsk]: No housekeeping file found. Check the path/access to the correct directory.'
-			raise OSError(message)
-		elif len(hsk_files) != 1:
-			message = 'Error [Meta_arcsix.load_hsk]: More than 1 housekeeping file found. Check the files in the directory.'
-			raise OSError(message)
-		else:
-			hsk_fn = hsk_files[0]
+	def load_aircraft(self, location='argus', kind='hsk'):
+		if kind.lower() == 'hsk':
+			if location == 'argus':
+				path = '/Volumes/argus/field/arcsix/processed'
+			else:
+				path = location
+			yyyy, mm, dd = self.date.split('-')
+			hsk_fname = 'ARCSIX-HSK_P3B_%s%s%s_*.h5' % (yyyy, mm, dd)
+			hsk_path = os.path.join(path, hsk_fname)
+			hsk_files  = glob.glob(hsk_path)
+			if len(hsk_files) == 0:
+				message = 'Error [Meta_arcsix.load_metnav]: No housekeeping file found. Check the path/access to the correct directory.'
+				raise OSError(message)
+			elif len(hsk_files) != 1:
+				message = 'Error [Meta_arcsix.load_metnav]: More than 1 housekeeping file found. Check the files in the directory.'
+				raise OSError(message)
+			else:
+				hsk_fn = hsk_files[0]
+			
+			self.hsk_dict = self.read_hsk(hsk_fn)
+
+			self.hrss = self.hsk_dict['hrs']
+			self.lats = self.hsk_dict['lat']
+			self.lons = self.hsk_dict['lon']
+			self.alts = self.hsk_dict['alt']
+			self.pits = self.hsk_dict['pit'] # [deg]
+			self.rols = self.hsk_dict['rol'] # [deg]
+			self.heds = self.hsk_dict['hed'] # [deg]
 		
-		self.hsk_dict = self.read_hsk(hsk_fn)
+		elif kind.lower() == 'metnav':
+			if location == 'argus':
+				path = '/Volumes/argus/field/arcsix/2024/p3b/aux/'
+			else:
+				path = location
+			yyyy, mm, dd = self.date.split('-')
+			metnav_fname = 'ARCSIX-MetNav_P3B_%s%s%s_*.ict' % (yyyy, mm, dd)
+			metnav_path = os.path.join(path, metnav_fname)
+			metnav_files  = glob.glob(metnav_path)
 
-		self.hrss = self.hsk_dict['hrs']
-		self.lats = self.hsk_dict['lat']
-		self.lons = self.hsk_dict['lon']
-		self.alts = self.hsk_dict['alt']
-		self.pits = self.hsk_dict['pit'] # [deg]
-		self.rols = self.hsk_dict['rol'] # [deg]
-		self.heds = self.hsk_dict['hed'] # [deg]
+			if len(metnav_files) == 0:
+				message = 'Error [Meta_arcsix.load_metnav]: No metnav file found. Check the path/access to the correct directory.'
+				raise OSError(message)
+			elif len(metnav_files) != 1:
+				message = 'Error [Meta_arcsix.load_metnav]: More than 1 metnav file found. Check the files in the directory.'
+				raise OSError(message)
+			
+			self.metnav_dict = self.read_metnav(metnav_files[0])
 
+			self.hrss = self.metnav_dict['hrs']
+			self.lats = self.metnav_dict['Latitude']
+			self.lons = self.metnav_dict['Longitude']
+			self.alts = self.metnav_dict['GPS_Altitude']
+			self.pits = self.metnav_dict['Pitch_Angle'] # [deg]
+			self.rols = self.metnav_dict['Roll_Angle'] # [deg]
+			self.heds = self.metnav_dict['True_Heading'] # [deg]
+	
+	def read_metnav(self, metnav_fname):
+		vname_list = []
+
+		mnf = open(metnav_fname, 'r')
+
+		line = mnf.readline()
+		nheader = int(line.split(',')[0])
+
+		for _ in range(7): mnf.readline()
+
+		line = mnf.readline()
+		vname = line.strip().split(',')[0].strip()
+		vname_list.append(vname)
+
+		nvar = int(mnf.readline())
+		mnf.readline()
+		fill_values = np.array([float(word) for word in mnf.readline().strip().split(',')], dtype=np.float64)
+
+		for i in range(nvar):
+			line = mnf.readline()
+			vname = line.strip().split(',')[0].strip()
+			vname_list.append(vname)
+		
+		mnf.close()
+
+		data_all = np.genfromtxt(metnav_fname, skip_header=nheader, delimiter=',', invalid_raise=False)
+
+		metnav_data = {}
+		metnav_data['hrs'] = data_all[:, 0]/3600.0
+
+		for i, vname in enumerate(vname_list):
+			dat = data_all[:, i]
+			dat[dat == fill_values[i-1]] = np.nan
+			metnav_data[vname] = dat
+		
+		return metnav_data
 
 	def read_hsk(self, hsk_filename):
 		print('Reading {}'.format(hsk_filename))
