@@ -695,7 +695,7 @@ class Camera_arcsix:
 				fmsk = np.fliplr(fmsk)
 			fheader_msk = handle_msk[0].header
 
-			fflg[fmsk > 0.] |= 1 # aircraft body obstruction flag
+			fflg[fmsk[:, :, 1] > 0.] |= 1 # aircraft body obstruction flag
 			fimg[fmsk > 0.] = np.nan
 		
 		img = {'data': fimg, 'flag': fflg, 'shape': fimg.shape, 'type': 'count', 'unit': 'unitless', 'wavelength': None}
