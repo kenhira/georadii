@@ -251,13 +251,20 @@ def get_spec_resp(spec_resp_txt, instrument='cam'):
         # print('Center wavelength: %9.2f nm' % np.trapz(wavelengths*spec_resp[i, :], x=wavelengths))
     return wavelengths, spec_resp, nch
 
-def get_ssfr_fluxdn(f_RA, fhsk, start_time, end_time, flux_source='ssfr', instrument='cam', spec_resp_txt="./response_ARCSIX.txt"):
+def get_ssfr_flux(f_RA, fhsk, start_time, end_time, direction='zen', flux_source='ssfr', instrument='cam', spec_resp_txt="./response_ARCSIX.txt"):
+    if direction == 'zen' or direction == 'down' or direction == 'dn' or direction == 'downwelling' or direction == 'downw':
+        typ = 'zen'
+    elif direction == 'nadir' or direction == 'up' or direction == 'upwelling' or direction == 'upw':
+        typ = 'nad'
+    else:
+        msg = 'Unknown direction: %s' % direction
+        raise ValueError(msg)
     ### Open SSFR file ###
     with h5py.File(f_RA, 'r') as f:
         tmhr_all = f['tmhr'][...]
         if flux_source == 'ssfr':
-            rad_all = f['zen/flux'][...]
-            wvl = f['zen/wvl'][...] # nm
+            rad_all = f['%s/flux' % typ][...]
+            wvl = f['%s/wvl' % typ][...] # nm
             tmhr_ssfr = f['tmhr'][...]
         else:
             msg = 'Unknown flux source: %s' % flux_source
@@ -288,17 +295,17 @@ def get_ssfr_fluxdn(f_RA, fhsk, start_time, end_time, flux_source='ssfr', instru
     for it in range(len(tmhr)):
         flux_ssfr[it, :] = np.interp(wavelengths, wvl, rad[it, :])
     
-    # Calculate the flux down corresponding to each camera channel
+    # Calculate the flux corresponding to each camera channel
     f_resp = np.zeros((nch, len(tmhr)))
     for ich in range(nch):
         f_resp[ich, :] = np.trapezoid(spec_resp[ich, :][np.newaxis, :]*flux_ssfr, x=wavelengths, axis=1)
 
     # Average temporally
-    flux_down = np.nanmean(f_resp[:, :], axis=1)
+    flux = np.nanmean(f_resp[:, :], axis=1)
     for ich in range(nch):
-        print('Flux down (ch=%d): %9.4f (W/m^2/nm)' % (ich, flux_down[ich]))
+        print('Flux (ch=%d): %9.4f (W/m^2/nm)' % (ich, flux[ich]))
 
-    return flux_down
+    return flux
 
 def write_surface_grid_to_nc(output_ncfile, datout, lonxx, latyy, vzagrid, vaagrid, ncount, date, tact, reflectance=None, flxdn=None, wvlc=None, sza=None, saa=None):
     print('Writing to %s' % (output_ncfile))
