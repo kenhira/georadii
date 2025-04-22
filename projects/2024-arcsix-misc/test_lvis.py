@@ -49,16 +49,16 @@ if __name__ == "__main__":
 
     lvis_geom, lvis_meta = lvis_tool.load_lvis_l2(start_time, end_time, location='/Users/kehi6101/Downloads/lvis/l2/')
 
-    lat_arr = lvis_meta['lat']
-    lon_arr = lvis_meta['lon']
+    lat_arr = lvis_meta['latgeo']
+    lon_arr = lvis_meta['longeo']
     out_arr = lvis_geom['data'][:, 0, 1]
     cbarlabl = 'LVIS max-amp altitude (m)'
-    # lat_arr = lvis_meta['lat']
-    # lon_arr = lvis_meta['lon']
+    # lat_arr = lvis_meta['latgeo']
+    # lon_arr = lvis_meta['longeo']
     # out_arr = lvis_geom['data'][:, 0, 2] - lvis_geom['data'][:, 0, 0]
     # cbarlabl = 'LVIS alt max - min (m)'
-    # lat_arr = lvis_meta['lat']
-    # lon_arr = lvis_meta['lon']
+    # lat_arr = lvis_meta['latgeo']
+    # lon_arr = lvis_meta['longeo']
     # # out_arr = lvis_meta['incident']
     # # out_arr = lvis_meta['range']
     # out_arr = lvis_meta['range']*np.cos(np.deg2rad(lvis_meta['incident']))
@@ -78,9 +78,9 @@ if __name__ == "__main__":
         plt.show()
 
     else:
-        xcenter, ycenter = np.mean(lvis_meta['lon']), np.mean(lvis_meta['lat'])
-        xmin, xmax = np.nanmin(lvis_meta['lon']), np.nanmax(lvis_meta['lon'])
-        ymin, ymax = np.nanmin(lvis_meta['lat']), np.nanmax(lvis_meta['lat'])
+        xcenter, ycenter = np.mean(lvis_meta['longeo']), np.mean(lvis_meta['latgeo'])
+        xmin, xmax = np.nanmin(lvis_meta['longeo']), np.nanmax(lvis_meta['longeo'])
+        ymin, ymax = np.nanmin(lvis_meta['latgeo']), np.nanmax(lvis_meta['latgeo'])
 
         # Scatter plot of LVIS data
         cartopy_proj = ccrs.Orthographic(central_longitude=xcenter, central_latitude=ycenter,)
@@ -88,7 +88,7 @@ if __name__ == "__main__":
         ax = fig.add_subplot(111, projection=cartopy_proj)
 
         sc = ax.scatter(
-            # lvis_meta['lon'], lvis_meta['lat'], 
+            # lvis_meta['longeo'], lvis_meta['latgeo'], 
             # c=lvis_geom['data'][:, 0, 1], 
             lon_arr, lat_arr,
             c=out_arr,

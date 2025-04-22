@@ -329,7 +329,7 @@ class LVIS_arcsix:
 
 		img = {'data': colpix, 'type': 'altitude', 'unit': 'altitude', 'alttype': ['low', 'maxamp', 'high']}
 		# latlon_meta = {'longeo': lonpix, 'latgeo': latpix}#, 'timepix': timepix}
-		latlon_meta = {'lat': latpix, 'lon': lonpix, 'latall': latallpix, 'lonall': lonallpix, 'azimuth': azimuthpix, 'incident': incidentpix, 'range': rangepix, 'time': timepix}
+		latlon_meta = {'latgeo': latpix, 'longeo': lonpix, 'latall': latallpix, 'lonall': lonallpix, 'azimuth': azimuthpix, 'incident': incidentpix, 'range': rangepix, 'time': timepix}
 		return img, latlon_meta
 	
 	def locate_allfiles(self, location='.'):
