@@ -704,8 +704,8 @@ class Camera_arcsix:
 		fits_allfiles = sorted(fits_allfiles)
 		return fits_allfiles
 	
-	def rad_and_geom_from_fits(self, fits_filename, flipud=None, fliplr=None, mask_fits_filename=None, mask_aircraft_shadow=True):
-		image, header = self.radiance_from_fits(fits_filename, flipud=flipud, fliplr=fliplr, mask_fits_filename=mask_fits_filename)
+	def rad_and_geom_from_fits(self, fits_filename, flipud=None, fliplr=None, mask_fits_filename=None, mask_aircraft_shadow=True, saturation_val=None):
+		image, header = self.radiance_from_fits(fits_filename, flipud=flipud, fliplr=fliplr, mask_fits_filename=mask_fits_filename, saturation_val=saturation_val)
 		t_act, aircraft_status = self.interpolate_hsk_for_fits(header['DATE-OBS'])
 		vza, vaa = self.calc_viewing_geometry(aircraft_status['rol'], aircraft_status['pit'], aircraft_status['hed'])
 		image['flag'][np.isnan(vza)] |= 4 # Oblique view flag
@@ -726,7 +726,7 @@ class Camera_arcsix:
 		return aircraft_status, t_act
 
 	# Read image file (Fits file format) and convert to radiance
-	def radiance_from_fits(self, fits_filename, flipud=None, fliplr=None, mask_fits_filename=None):
+	def radiance_from_fits(self, fits_filename, flipud=None, fliplr=None, mask_fits_filename=None, saturation_val=None):
 		if flipud is None:
 			flipud = self.flipud
 		if fliplr is None:
@@ -767,7 +767,7 @@ class Camera_arcsix:
 		
 		img = {'data': fimg, 'flag': fflg, 'shape': fimg.shape, 'type': 'count', 'unit': 'unitless', 'wavelength': None}
 
-		img_rad = self.rad_conversion(img, fheader['EXPTIME'], radcal_dict=self.rad_coef, wvlc_list=self.rad_wvlc, saturation_val=0.9*(2**fheader['BITPIX']))
+		img_rad = self.rad_conversion(img, fheader['EXPTIME'], radcal_dict=self.rad_coef, wvlc_list=self.rad_wvlc, saturation_val=saturation_val)
 		
 		return img_rad, fheader
 	
