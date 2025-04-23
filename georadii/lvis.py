@@ -302,30 +302,30 @@ class LVIS_arcsix:
 			raise OSError(message)
 
 		colpix  = np.zeros((len(ipixels), 1, 3))
-		latpix  = np.zeros((len(ipixels), 1))
-		lonpix  = np.zeros((len(ipixels), 1))
+		latpix  = np.zeros((len(ipixels)))
+		lonpix  = np.zeros((len(ipixels)))
 		latallpix = np.zeros((len(ipixels), 3))
 		lonallpix = np.zeros((len(ipixels), 3))
-		azimuthpix  = np.zeros((len(ipixels), 1))
-		incidentpix  = np.zeros((len(ipixels), 1))
-		rangepix  = np.zeros((len(ipixels), 1))
-		timepix = np.zeros((len(ipixels), 1), dtype='datetime64[us]')
+		azimuthpix  = np.zeros((len(ipixels)))
+		incidentpix  = np.zeros((len(ipixels)))
+		rangepix  = np.zeros((len(ipixels)))
+		timepix = np.zeros((len(ipixels)), dtype='datetime64[us]')
 
 		colpix[:, 0, 0]  = z_low_arr[ipixels]
 		colpix[:, 0, 1]  = z_maxamp_arr[ipixels]
 		colpix[:, 0, 2]  = z_high_arr[ipixels]
-		latpix[:, 0]     = lat_maxamp_arr[ipixels]
-		lonpix[:, 0]     = lon_maxamp_arr[ipixels]
+		latpix[:]     = lat_maxamp_arr[ipixels]
+		lonpix[:]     = lon_maxamp_arr[ipixels]
 		latallpix[:, 0]  = lat_low_arr[ipixels]
 		latallpix[:, 1]  = lat_maxamp_arr[ipixels]
 		latallpix[:, 2]  = lat_high_arr[ipixels]
 		lonallpix[:, 0]  = lon_low_arr[ipixels]
 		lonallpix[:, 1]  = lon_maxamp_arr[ipixels]
 		lonallpix[:, 2]  = lon_high_arr[ipixels]
-		azimuthpix[:, 0] = azimuth_arr[ipixels]
-		incidentpix[:, 0] = incident_arr[ipixels]
-		rangepix[:, 0]   = rangev_arr[ipixels]
-		timepix[:, 0]    = timev_arr[ipixels]
+		azimuthpix[:] = azimuth_arr[ipixels]
+		incidentpix[:] = incident_arr[ipixels]
+		rangepix[:]   = rangev_arr[ipixels]
+		timepix[:]    = timev_arr[ipixels]
 
 		img = {'data': colpix, 'type': 'altitude', 'unit': 'altitude', 'alttype': ['low', 'maxamp', 'high']}
 		# latlon_meta = {'longeo': lonpix, 'latgeo': latpix}#, 'timepix': timepix}
