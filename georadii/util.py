@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 from matplotlib.ticker import FixedLocator
 from scipy.interpolate import griddata
+import pysolar
 
 # Read housekeeping file (HDF5 binary data format)
 def read_hsk_camp2ex(hsk_filename):
@@ -828,3 +829,12 @@ def calc_flx_from_rad(zen2d, razi2d, rad_2d, nan_treatment='remove'):
         # integrand = rad2d*cos_zen*dmu*drazi
         flx = np.sum(integrand)
     return flx
+
+def get_solar_angles(date_str, time_str, lat, lon):
+    dt = datetime.datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M:%S")
+    dt = dt.replace(tzinfo=datetime.timezone.utc)
+    elevation = pysolar.solar.get_altitude(lat, lon, dt)
+    azimuth = pysolar.solar.get_azimuth(lat, lon, dt)
+    zenith = 90.0 - elevation
+
+    return zenith, azimuth
