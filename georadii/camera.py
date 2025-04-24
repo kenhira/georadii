@@ -906,7 +906,7 @@ class Camera_arcsix:
 		return averaged_status
 	
 	def interpolate_hsk(self, t_dt):
-		hrs   = t_dt.hour + t_dt.minute/60. + t_dt.second/3600.
+		hrs   = t_dt.hour + t_dt.minute/60. + t_dt.second/3600. + t_dt.microsecond/3600./1e6
 		lat  = np.interp(hrs, self.hrss, self.lats) # interpolate to find values for the time at which the image was taken
 		lon  = np.interp(hrs, self.hrss, self.lons)
 		alt  = np.interp(hrs, self.hrss, self.alts)
