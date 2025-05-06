@@ -543,6 +543,28 @@ def write_surface_grid_to_nc_archive(output_ncfile, datout, lonxx, latyy, vzagri
         mm_var.assignValue(date.split('-')[1])
         dd_var.assignValue(date.split('-')[2])
         time_var.assignValue(tact.hour + tact.minute/60. + tact.second/3600. + tact.microsecond/(3600*1e6))
+
+        # Add global attributes
+        ncfile.setncattr("file_originator_contact", "ken.hirata@colorado.edu, sebastian.schmidt@lasp.colorado.edu")
+        ncfile.setncattr("file_originator", "Ken Hirata, Sebastian Schmidt")
+        ncfile.setncattr("institution", "University of Colorado Boulder")
+        ncfile.setncattr("file_creation_date", datetime.datetime.utcnow().isoformat())
+        ncfile.setncattr("history", "R0: First public data release")
+        ncfile.setncattr("keywords", "radiance, multi-spectral, airborne, camera, ARCSIX")
+        ncfile.setncattr("measurement_platform", "NASA P3-B N426NA")
+        ncfile.setncattr("platform_identifier", "P3B")
+        ncfile.setncattr("platform_type", "AirMobile")
+        ncfile.setncattr("project", "ARCSIX 2024")
+        ncfile.setncattr("source", "NAC")
+        ncfile.setncattr("source_description", "Airborne Nadir-looking All-sky Camera")
+        ncfile.setncattr("summary", "ARCSIX surface-projected multi-spectral radiance imagery on the %s flight. Publication quality data." % date)
+        ncfile.setncattr("title", "ARCSIX surface-projected multi-spectral camera radiance imagery")
+        ncfile.setncattr("comment", "This file contains gridded, surface-projected multi-spectral radiance with associated metadata.")
+        ncfile.setncattr("format", "NetCDF4")
+        ncfile.setncattr("pi_contact", "hong.chen@lasp.colorado.edu, sebastian.schmidt@lasp.colorado.edu")
+        ncfile.setncattr("pi_name", "Hong Chen, K. Sebastian Schmidt")
+        ncfile.setncattr("processingLevel", "L1")
+        ncfile.setncattr("versionid", "R0")
     
 
 def write_angular_grid_to_nc(output_ncfile, datout, zen_yy, razi_xx, date, start_time, end_time, reflectance=None, azi_xx=None, sza=None, saa=None, flxdn=None, wvlc=None, nimg=None, alt=None):
@@ -838,3 +860,39 @@ def get_solar_angles(date_str, time_str, lat, lon):
     zenith = 90.0 - elevation
 
     return zenith, azimuth
+
+def get_solar_angles_multi(dt, lat, lon, alt):
+    dt = np.array(dt)
+    lat = np.array(lat)
+    lon = np.array(lon)
+    alt = np.array(alt)
+
+    if len(dt) == 1:
+        dt = np.repeat(dt, len(lat))
+    if len(lat) == 1:
+        lat = np.repeat(lat, len(dt))
+    if len(lon) == 1:
+        lon = np.repeat(lon, len(dt))
+    if len(alt) == 1:
+        alt = np.repeat(alt, len(dt))
+
+    zenith = []
+    azimuth = []
+    for i in range(len(dt)):
+        dti = dt[i].astype('O').replace(tzinfo=datetime.timezone.utc)
+        # dti = dt[i].replace(tzinfo=datetime.timezone.utc)
+        zeni = 90. - pysolar.solar.get_altitude(lat[i], lon[i], dti, elevation=alt[i])
+        azim = pysolar.solar.get_azimuth(lat[i], lon[i], dti, elevation=alt[i])
+        zenith.append(zeni)
+        azimuth.append(azim)
+
+    zenith = np.array(zenith)
+    azimuth = np.array(azimuth)
+
+    return zenith, azimuth
+
+def nearest_grid_width_in_deg(deg, res_list_m):
+    res_list_deg = np.array(res_list_m) / 6371000.0 * (180.0 / np.pi)
+    nearest_index = np.min(np.where(res_list_deg >= deg)[-1])
+    nearest_res_deg = res_list_deg[nearest_index]
+    return nearest_res_deg, res_list_m[nearest_index]
