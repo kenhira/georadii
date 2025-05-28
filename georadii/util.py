@@ -738,9 +738,11 @@ def plot_surface_and_angular_grid_image(fn_out, lon_xx, lat_yy, ref_surface, rel
 def plot_angular_grid_rad_and_ref(fn_out, rel_azimuth, zenith, rad, ref, sza, flxdn, start_time, end_time=None, nimg=None, alt=None, meta={}):
     meta1 = meta.get('rad', {})
     meta2 = meta.get('ref', {})
+    plottyp1 = meta1.get('plottyp', None)
     vmin1 = meta1.get('vmin', None)
     vmax1 = meta1.get('vmax', None)
     cmap1 = meta1.get('cmap', 'viridis')
+    plottyp2 = meta2.get('plottyp', None)
     vmin2 = meta2.get('vmin', None)
     vmax2 = meta2.get('vmax', None)
     cmap2 = meta2.get('cmap', 'viridis')
@@ -750,7 +752,16 @@ def plot_angular_grid_rad_and_ref(fn_out, rel_azimuth, zenith, rad, ref, sza, fl
     ax1 = fig.add_subplot(121, projection='polar')
     ax1.set_theta_direction(-1)
     ax1.set_theta_offset(np.pi/2.)
-    cw = ax1.pcolormesh(rel_azimuth*np.pi/180., zenith, rad, vmin=vmin1, vmax=vmax1, cmap=cmap1)
+    if plottyp1 == 'pcolormesh':
+        cw = ax1.pcolormesh(rel_azimuth*np.pi/180., zenith, rad, vmin=vmin1, vmax=vmax1, cmap=cmap1)
+    elif plottyp1 == 'contourf':
+        if vmin1 is not None and vmax1 is not None:
+            levels = np.linspace(vmin1, vmax1, 21)
+        else:
+            levels = None
+        cw = ax1.contourf(rel_azimuth*np.pi/180., zenith, rad, levels=levels, cmap=cmap1)
+    else:
+        cw = ax1.pcolormesh(rel_azimuth*np.pi/180., zenith, rad, vmin=vmin1, vmax=vmax1, cmap=cmap1)
     ax1.set_rticks([30., 60., 90.])
     ax1.annotate('Radiance', (-0.10, 1.05), xycoords='axes fraction')
     cbar1 = fig.colorbar(cw, ax=ax1, orientation='horizontal')
@@ -761,7 +772,16 @@ def plot_angular_grid_rad_and_ref(fn_out, rel_azimuth, zenith, rad, ref, sza, fl
     ax2 = fig.add_subplot(122, projection='polar')
     ax2.set_theta_direction(-1)
     ax2.set_theta_offset(np.pi/2.)
-    cw = ax2.pcolormesh(rel_azimuth*np.pi/180., zenith, ref, vmin=vmin2, vmax=vmax2, cmap=cmap2)
+    if plottyp2 == 'pcolormesh':
+        cw = ax2.pcolormesh(rel_azimuth*np.pi/180., zenith, ref, vmin=vmin2, vmax=vmax2, cmap=cmap2)
+    elif plottyp2 == 'contourf':
+        if vmin2 is not None and vmax2 is not None:
+            levels = np.linspace(vmin2, vmax2, 21)
+        else:
+            levels = None
+        cw = ax2.contourf(rel_azimuth*np.pi/180., zenith, ref, levels=levels, cmap=cmap2)
+    else:
+        cw = ax2.pcolormesh(rel_azimuth*np.pi/180., zenith, ref, vmin=vmin2, vmax=vmax2, cmap=cmap2)
     ax2.set_rticks([30., 60., 90.])
     ax2.annotate('Reflectance', (-0.10, 1.05), xycoords='axes fraction')
     if alt is not None: ax2.annotate('Alt: %7.1f m' % alt, ( 0.70, -0.07), xycoords='axes fraction', fontsize=9)
