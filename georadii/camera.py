@@ -217,10 +217,10 @@ class Camera_arcsix:
 				'available'		:	True,
 				'time offset'	:	{
 					'day'	:	0.,
-					'time1' :	'06:00:00',
-					'time2' :	'18:00:00',
-					'second1':	0.,
-					'second2':	0.,
+					'time1' :	'11:21:08',
+					'time2' :	'18:44:40',
+					'second1':	0.2,
+					'second2':	0.7,
 				},
 			},
 			'2024-07-30':{
