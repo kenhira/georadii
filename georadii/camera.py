@@ -228,10 +228,10 @@ class Camera_arcsix:
 				'available'		:	True,
 				'time offset'	:	{
 					'day'	:	0.,
-					'time1' :	'06:00:00',
-					'time2' :	'18:00:00',
-					'second1':	0.,
-					'second2':	0.,
+					'time1' :	'11:07:44',
+					'time2' :	'18:14:36',
+					'second1':	0.35,
+					'second2':	0.85,
 				},
 			},
 			'2024-08-01':{
@@ -239,10 +239,10 @@ class Camera_arcsix:
 				'available'		:	True,
 				'time offset'	:	{
 					'day'	:	0.,
-					'time1' :	'06:00:00',
-					'time2' :	'18:00:00',
-					'second1':	0.,
-					'second2':	0.,
+					'time1' :	'11:14:54',
+					'time2' :	'18:38:15',
+					'second1':	0.1,
+					'second2':	0.6,
 				},
 			},
 			'2024-08-02':{
@@ -250,10 +250,10 @@ class Camera_arcsix:
 				'available'		:	True,
 				'time offset'	:	{
 					'day'	:	0.,
-					'time1' :	'06:00:00',
-					'time2' :	'18:00:00',
-					'second1':	0.,
-					'second2':	0.,
+					'time1' :	'11:08:55',
+					'time2' :	'19:09:18',
+					'second1':	0.2, # TBU
+					'second2':	0.75,
 				},
 			},
 			'2024-08-07':{
@@ -294,10 +294,10 @@ class Camera_arcsix:
 				'available'		:	True,
 				'time offset'	:	{
 					'day'	:	0.,
-					'time1' :	'06:00:00',
-					'time2' :	'18:00:00',
-					'second1':	0.,
-					'second2':	0.,
+					'time1' :	'11:01:59',
+					'time2' :	'18:30:23',
+					'second1':	0.3,
+					'second2':	0.75,
 				},
 			},
 			'2024-08-16':{
