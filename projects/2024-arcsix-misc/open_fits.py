@@ -18,9 +18,13 @@ import matplotlib.pyplot as plt
 from georadii.util import read_fits
 
 if __name__ == "__main__":
-	if len(sys.argv) == 2:
-		factor = 1.
-		print(f"Arguments received: {sys.argv[1]}")
+	if len(sys.argv) == 3:
+		try:
+			factor = float(sys.argv[2])
+		except ValueError:
+			print("Second argument must be a number (factor).")
+			sys.exit(1)
+		print(f"Arguments received: {sys.argv[1]}, factor: {factor}")
 		filename = sys.argv[1]
 
 		# Extract the image data from .fits file
@@ -33,8 +37,6 @@ if __name__ == "__main__":
 		fig = plt.figure(figsize=(12, 9))
 		ax = fig.add_subplot(111)
 		ax.imshow(factor*img*2**(-16)) # ARCSIX/CAMP2Ex
-		# ax.imshow(factor*img*2**(-14)) # CAMP2Ex??
-		# ax.imshow(factor*img/img.max())
 		ax.set_title(os.path.basename(filename).split('/')[-1])
 
 		# Make the directory to store the output pngs
@@ -50,9 +52,13 @@ if __name__ == "__main__":
 
 		plt.savefig('%s/out.png' % (dir2name), dpi=300)
 		plt.show()
-	elif len(sys.argv) == 3:
-		factor = 50.
-		print(f"Arguments received: {sys.argv[1]} {sys.argv[2]}")
+	elif len(sys.argv) == 4:
+		try:
+			factor = float(sys.argv[3])
+		except ValueError:
+			print("Third argument must be a number (factor).")
+			sys.exit(1)
+		print(f"Arguments received: {sys.argv[1]} {sys.argv[2]}, factor: {factor}")
 		filename  = sys.argv[1]
 		filename2 = sys.argv[2]
 
@@ -84,4 +90,6 @@ if __name__ == "__main__":
 		plt.savefig('%s/out.png' % (dir2name), dpi=300)
 		plt.show()
 	else:
-		print("Not enough arguments were passed.")	
+		print("Usage:")
+		print("  python3 open_fits.py <fits_file> <factor>")
+		print("  python3 open_fits.py <fits_file1> <fits_file2> <factor>")
