@@ -41,7 +41,9 @@ def read_hsk_arcsix(hsk_filename):
                 'lon': h5f['lon'][...]   ,
                 'hed': h5f['ang_hed'][...],
                 'rol': h5f['ang_rol'][...]  ,
-                'pit': h5f['ang_pit'][...]  }
+                'pit': h5f['ang_pit'][...]  ,
+                'sza': h5f['sza'][...],
+                'saa': h5f['saa'][...],}
     return hsk_data
 
 # ?????
@@ -252,21 +254,26 @@ def get_spec_resp(spec_resp_txt, instrument='cam'):
         # print('Center wavelength: %9.2f nm' % np.trapz(wavelengths*spec_resp[i, :], x=wavelengths))
     return wavelengths, spec_resp, nch
 
-def get_ssfr_flux(f_RA, fhsk, start_time, end_time, direction='zen', flux_source='ssfr', instrument='cam', spec_resp_txt="./response_ARCSIX.txt"):
+def get_ssfr_flux(f_R0, fhsk, start_time, end_time, direction='zen', flux_source='ssfr', instrument='cam', spec_resp_txt="./response_ARCSIX.txt", method='mean'):
     if direction == 'zen' or direction == 'down' or direction == 'dn' or direction == 'downwelling' or direction == 'downw':
-        typ = 'zen'
-    elif direction == 'nadir' or direction == 'up' or direction == 'upwelling' or direction == 'upw':
-        typ = 'nad'
+        # typ = 'zen'
+        suffix = '_dn'
+    elif direction == 'nadir' or direction == 'nad' or direction == 'up' or direction == 'upwelling' or direction == 'upw':
+        # typ = 'nad'
+        suffix = '_up'
     else:
         msg = 'Unknown direction: %s' % direction
         raise ValueError(msg)
     ### Open SSFR file ###
-    with h5py.File(f_RA, 'r') as f:
-        tmhr_all = f['tmhr'][...]
+    with h5py.File(f_R0, 'r') as f:
+        # tmhr_all = f['tmhr'][...]
         if flux_source == 'ssfr':
-            rad_all = f['%s/flux' % typ][...]
-            wvl = f['%s/wvl' % typ][...] # nm
-            tmhr_ssfr = f['tmhr'][...]
+            # rad_all = f['%s/flux' % typ][...]
+            # wvl = f['%s/wvl' % typ][...] # nm
+            # tmhr_ssfr = f['tmhr'][...]
+            rad_all = f['f%s' % suffix][...]
+            wvl = f['wvl%s' % suffix][...]
+            tmhr_ssfr = f['time'][...] / 3600. # convert from seconds to hours
         else:
             msg = 'Unknown flux source: %s' % flux_source
             raise ValueError(msg)
@@ -284,29 +291,138 @@ def get_ssfr_flux(f_RA, fhsk, start_time, end_time, direction='zen', flux_source
     st_hr = st_dt.hour + st_dt.minute/60. + st_dt.second/3600.
     en_hr = en_dt.hour + en_dt.minute/60. + en_dt.second/3600.
 
-    target = level & (st_hr <= tmhr_all) & (tmhr_all < en_hr) # time and attitude filter
-    tmhr = tmhr_all[target]
+    target = level & (st_hr <= tmhr_ssfr) & (tmhr_ssfr < en_hr) # time and attitude filter
+    tmhr = tmhr_ssfr[target]
     rad  = rad_all[target]
 
-    ### Open camera spectral response ###
-    wavelengths, spec_resp, nch = get_spec_resp(spec_resp_txt, instrument=instrument)
+    if spec_resp_txt is not None:
+        ### Open camera spectral response ###
+        wavelengths, spec_resp, nch = get_spec_resp(spec_resp_txt, instrument=instrument)
 
-    # Match the SSFR data to the camera spectral response function wavelength increments
-    flux_ssfr = np.zeros((len(tmhr), len(wavelengths)))
-    for it in range(len(tmhr)):
-        flux_ssfr[it, :] = np.interp(wavelengths, wvl, rad[it, :])
+        # Match the SSFR data to the camera spectral response function wavelength increments
+        flux_ssfr = np.zeros((len(tmhr), len(wavelengths)))
+        for it in range(len(tmhr)):
+            flux_ssfr[it, :] = np.interp(wavelengths, wvl, rad[it, :])
+        
+        # Calculate the flux corresponding to each camera channel
+        f_resp = np.zeros((nch, len(tmhr)))
+        for ich in range(nch):
+            f_resp[ich, :] = np.trapezoid(spec_resp[ich, :][np.newaxis, :]*flux_ssfr, x=wavelengths, axis=1)
+
+        if method.lower() == 'mean':
+            # Average temporally
+            flux = np.nanmean(f_resp[:, :], axis=1)
+            for ich in range(nch):
+                print('Flux (ch=%d): %9.4f (W/m^2/nm)' % (ich, flux[ich]))
+            return flux
+        elif method.lower() == 'all':
+            # Return all fluxes
+            flux = f_resp
+            return flux, tmhr
+        else:
+            msg = 'Unknown method: %s. Use "mean" or "all".' % method
+            raise ValueError(msg)
+    else:
+        # If no spectral response is provided, return the raw fluxes
+        if method.lower() == 'mean':
+            flux = np.nanmean(rad, axis=1)
+            for ich in range(rad.shape[1]):
+                print('Flux (ch=%d): %9.4f (W/m^2/nm)' % (ich, flux[ich]))
+            return flux, wvl
+        elif method.lower() == 'all':
+            return rad, wvl, tmhr
+        else:
+            msg = 'Unknown method: %s. Use "mean" or "all".' % method
+            raise ValueError(msg)
+
+
+def get_hsr_flux(f_R0, fhsk, start_time, end_time, direction='zen', flux_source='hsr', instrument='cam', spec_resp_txt="./response_ARCSIX.txt", method='mean'):
+    if direction == 'zen' or direction == 'down' or direction == 'dn' or direction == 'downwelling' or direction == 'downw':
+        suffix = '_dn'
+    elif direction == 'nadir' or direction == 'up' or direction == 'upwelling' or direction == 'upw':
+        msg = 'Invalid direction: %s. Only downwelling is available for HSR1.' % direction
+        raise ValueError(msg)
+    else:
+        msg = 'Unknown direction: %s' % direction
+        raise ValueError(msg)
+    ### Open SSFR file ###
+    with h5py.File(f_R0, 'r') as f:
+        # tmhr_all = f['tmhr'][...]
+        if flux_source == 'hsr':
+            rad_tot_all = f['f%s_tot' % suffix][...]
+            rad_dif_all = f['f%s_dif' % suffix][...]
+            wvl_tot = f['wvl%s_tot' % suffix][...]
+            wvl_dif = f['wvl%s_dif' % suffix][...]
+            tmhr_hsr = f['time'][...] / 3600. # convert from seconds to hours
+        else:
+            msg = 'Unknown flux source: %s' % flux_source
+            raise ValueError(msg)
     
-    # Calculate the flux corresponding to each camera channel
-    f_resp = np.zeros((nch, len(tmhr)))
-    for ich in range(nch):
-        f_resp[ich, :] = np.trapezoid(spec_resp[ich, :][np.newaxis, :]*flux_ssfr, x=wavelengths, axis=1)
+    hsk_data = read_hsk_arcsix(fhsk)
+    tmhr_hsk = hsk_data['hrs']
+    pit = np.interp(tmhr_hsr, tmhr_hsk, hsk_data['pit'])
+    rol = np.interp(tmhr_hsr, tmhr_hsk, hsk_data['rol'])
 
-    # Average temporally
-    flux = np.nanmean(f_resp[:, :], axis=1)
-    for ich in range(nch):
-        print('Flux (ch=%d): %9.4f (W/m^2/nm)' % (ich, flux[ich]))
+    level = np.sqrt(pit**2. + rol**2.) < 2.5 # check if the aircraft is not tilted too much
+    
+    st_dt = datetime.datetime.strptime(start_time, '%H:%M:%S')
+    en_dt = datetime.datetime.strptime(end_time,   '%H:%M:%S')
 
-    return flux
+    st_hr = st_dt.hour + st_dt.minute/60. + st_dt.second/3600.
+    en_hr = en_dt.hour + en_dt.minute/60. + en_dt.second/3600.
+
+    target = level & (st_hr <= tmhr_hsr) & (tmhr_hsr < en_hr) # time and attitude filter
+    tmhr = tmhr_hsr[target]
+    rad_tot  = rad_tot_all[target]
+    rad_dif  = rad_dif_all[target]
+
+    if spec_resp_txt is not None:
+        ### Open camera spectral response ###
+        wavelengths, spec_resp, nch = get_spec_resp(spec_resp_txt, instrument=instrument)
+
+        # Match the SSFR data to the camera spectral response function wavelength increments
+        flux_hsr_tot = np.zeros((len(tmhr), len(wavelengths)))
+        flux_hsr_dif = np.zeros((len(tmhr), len(wavelengths)))
+        for it in range(len(tmhr)):
+            flux_hsr_tot[it, :] = np.interp(wavelengths, wvl_tot, rad_tot[it, :])
+            flux_hsr_dif[it, :] = np.interp(wavelengths, wvl_dif, rad_dif[it, :])
+        
+        # Calculate the flux corresponding to each camera channel
+        f_resp_t = np.zeros((nch, len(tmhr)))
+        f_resp_f = np.zeros((nch, len(tmhr)))
+        for ich in range(nch):
+            f_resp_t[ich, :] = np.trapezoid(spec_resp[ich, :][np.newaxis, :]*flux_hsr_tot, x=wavelengths, axis=1)
+            f_resp_f[ich, :] = np.trapezoid(spec_resp[ich, :][np.newaxis, :]*flux_hsr_dif, x=wavelengths, axis=1)
+
+        if method.lower() == 'mean':
+            # Average temporally
+            flux_t = np.nanmean(f_resp_t[:, :], axis=1)
+            flux_f = np.nanmean(f_resp_f[:, :], axis=1)
+            for ich in range(nch):
+                print('Flux (ch=%d): %9.4f, %9.4f (W/m^2/nm)' % (ich, flux_t[ich], flux_f[ich]))
+            return flux_t, flux_f
+        elif method.lower() == 'all':
+            # Return all fluxes
+            flux_t = f_resp_t
+            flux_f = f_resp_f
+            return flux_t, flux_f, tmhr
+        else:
+            msg = 'Unknown method: %s. Use "mean" or "all".' % method
+            raise ValueError(msg)
+    else:
+        # If no spectral response is provided, return the raw fluxes
+        if method.lower() == 'mean':
+            flux_t = np.nanmean(rad_tot, axis=1)
+            flux_f = np.nanmean(rad_dif, axis=1)
+            for ich in range(rad_tot.shape[1]):
+                print('Flux (ch=%d): %9.4f, %9.4f (W/m^2/nm)' % (ich, flux_t[ich], flux_f[ich]))
+            return flux_t, flux_f,  wvl_tot, wvl_dif
+        elif method.lower() == 'all':
+            return rad_tot, rad_dif, wvl_tot, wvl_dif, tmhr
+        else:
+            msg = 'Unknown method: %s. Use "mean" or "all".' % method
+            raise ValueError(msg)
+        
 
 def write_surface_grid_to_nc(output_ncfile, datout, lonxx, latyy, vzagrid, vaagrid, ncount, date, tact, reflectance=None, flxdn=None, wvlc=None, sza=None, saa=None):
     print('Writing to %s' % (output_ncfile))
