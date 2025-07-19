@@ -231,6 +231,26 @@ def calc_bearing(lon1, lat1, lon2, lat2, use_geod=False):
         dist = r_e*c
     return fwd_az1, dist
 
+def calc_displacement(lon1, lat1, bearing, dist, use_geod=False):
+    if use_geod:
+        from pyproj import Geod as geod
+        g = geod(ellps='WGS84')
+        lon2, lat2, _ = g.fwd(lon1, lat1, bearing, dist)
+    else:
+        earth_a = 6378137.0 # m (equatorial radius)
+        earth_b = 6356752.3 # m (polar radius)
+        lon1 = np.deg2rad(lon1)
+        lat1 = np.deg2rad(lat1)
+        bearing_rad = np.deg2rad(bearing)
+        r_e = np.sqrt((earth_a*np.cos(lat1))**2. + (earth_b*np.sin(lat1))**2.)
+        dlat = dist * np.cos(bearing_rad) / r_e
+        dlon = dist * np.sin(bearing_rad) / (r_e * np.cos(lat1))
+        lon2 = lon1 + dlon
+        lat2 = lat1 + dlat
+        lon2 = np.rad2deg(lon2)
+        lat2 = np.rad2deg(lat2)
+    return lon2, lat2
+
 def get_spec_resp(spec_resp_txt, instrument='cam'):
     if instrument == 'cam':
         nch = 3
