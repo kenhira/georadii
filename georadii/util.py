@@ -3,7 +3,7 @@ import sys
 import numpy as np
 import h5py
 from astropy.io import fits
-import cv2
+# import cv2
 import datetime
 import netCDF4 as nc
 import matplotlib.pyplot as plt
