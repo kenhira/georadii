@@ -682,8 +682,10 @@ class Camera_arcsix:
 		yyyy, mm, dd = self.date.split('-')
 		num_rf = self.flight_meta['description'].split(' ')[-1]
 		if location == 'argus':
-			'/Volumes/argus/field/arcsix/2024/p3b/20240531_sci-flt-03/raw/nac/fits'
+			# '/Volumes/argus/field/arcsix/2024/p3b/20240531_sci-flt-03/raw/nac/fits'
 			path = '/Volumes/argus/field/arcsix/2024/p3b/%s%s%s_sci-flt-%s/raw/nac/fits/*.fits*' % (yyyy, mm, dd, num_rf)
+		elif location == 'workstation':
+			path = '/argus/field/arcsix/2024/p3b/%s%s%s_sci-flt-%s/raw/nac/fits/*.fits*' % (yyyy, mm, dd, num_rf)
 		elif location in ['ARCSIX1KSS', 'ARCISX3KSS']:
 			if self.flight_date <= datetime.datetime(2024, 8, 3):
 				path = '/Volumes/ARCSIX1KSS/ARCSIX_RF%s_%s_%s_%s/Camera/**/*.fits*' % (num_rf, yyyy, mm, dd)
