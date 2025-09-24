@@ -1,6 +1,7 @@
 import os
 import sys
 import numpy as np
+import scipy
 import datetime
 import glob
 import h5py
@@ -173,6 +174,79 @@ class Georadii:
 				return grid_xx, grid_yy, datout, ncount, datflg
 			else:
 				return grid_xx, grid_yy, datout, ncount
+	
+	def interpolated(self, gridmeta=None, dryrun=False):
+		latlon_class = self.latlon_data
+		grid_meta = {}
+		grid_meta['transform'] = {	'type'        : 'rotate', # Rotate the lat/lon coordinate system so that the grids are more regular
+									'center'      : (0.5*(np.nanmin(latlon_class.longeo) + np.nanmax(latlon_class.longeo)),
+														0.5*(np.nanmin(latlon_class.latgeo) + np.nanmax(latlon_class.latgeo))),
+									'inclination' : 0. }
+		f_extend = 5.
+		grid_meta['x'] = {	'min' :  0.5*f_extend*np.nanmin(latlon_class.longeo) - 0.5*f_extend*np.nanmax(latlon_class.longeo),
+							'max' : -0.5*f_extend*np.nanmin(latlon_class.longeo) + 0.5*f_extend*np.nanmax(latlon_class.longeo),
+							'incr': (np.nanmax(latlon_class.longeo) - np.nanmin(latlon_class.longeo)) / 250.} 
+		grid_meta['y']  = {	'min' :  0.5*f_extend*np.nanmin(latlon_class.latgeo) - 0.5*f_extend*np.nanmax(latlon_class.latgeo),
+							'max' : -0.5*f_extend*np.nanmin(latlon_class.latgeo) + 0.5*f_extend*np.nanmax(latlon_class.latgeo),
+							'incr': (np.nanmax(latlon_class.latgeo) - np.nanmin(latlon_class.latgeo)) / 250.}
+		if gridmeta is None:
+			pass
+		else:
+			grid_meta.update(gridmeta)
+		# define the grid system
+		scatdat_x = latlon_class.longeo
+		scatdat_y = latlon_class.latgeo
+		scatdat_data = latlon_class.img['data']
+		scatdat_flag = latlon_class.img.get('flag', None)
+		scatdat_valid = latlon_class.valid_domain
+
+		if grid_meta['transform']['type'] == 'rotate': # Rotate the lat/lon coordinate system so that the grids are more regular
+			lon_center, lat_center = grid_meta['transform']['center']
+			inclination = grid_meta['transform']['inclination']
+			tmp_scatdat_y, tmp_scatdat_x = Georadii.rotate_coordinates(scatdat_y, scatdat_x, lat_center, lon_center, inclination)
+			if grid_meta is None:
+				grid_xmin, grid_xmax, grid_dx = np.nanmin(tmp_scatdat_x), np.nanmax(tmp_scatdat_x), (np.nanmax(tmp_scatdat_x) - np.nanmin(tmp_scatdat_x))/250.
+				grid_ymin, grid_ymax, grid_dy = np.nanmin(tmp_scatdat_y), np.nanmax(tmp_scatdat_y), (np.nanmax(tmp_scatdat_y) - np.nanmin(tmp_scatdat_y))/250.
+				grid_meta['x'] = {'min' : grid_xmin, 'max' : grid_xmax, 'incr': grid_dx}
+				grid_meta['y'] = {'min' : grid_ymin, 'max' : grid_ymax, 'incr': grid_dy}
+			else:
+				grid_xmin, grid_xmax, grid_dx = grid_meta['x']['min'], grid_meta['x']['max'], grid_meta['x']['incr']
+				grid_ymin, grid_ymax, grid_dy = grid_meta['y']['min'], grid_meta['y']['max'], grid_meta['y']['incr']
+		
+		elif grid_meta['transform']['type'] == 'ease2': # EASE 2.0 grid
+			tmp_scatdat_x, tmp_scatdat_y = Georadii.ease2_coordinates(scatdat_x, scatdat_y)
+			grid_xmin = grid_meta['x'].get('min', np.nanmin(tmp_scatdat_x))
+			grid_xmax = grid_meta['x'].get('max', np.nanmax(tmp_scatdat_x))
+			grid_dx   = grid_meta['x'].get('incr', (np.nanmax(tmp_scatdat_x) - np.nanmin(tmp_scatdat_x)) / 250.)
+			grid_ymin = grid_meta['y'].get('min', np.nanmin(tmp_scatdat_y))
+			grid_ymax = grid_meta['y'].get('max', np.nanmax(tmp_scatdat_y))
+			grid_dy   = grid_meta['y'].get('incr', (np.nanmax(tmp_scatdat_y) - np.nanmin(tmp_scatdat_y)) / 250.)
+			grid_meta['x'] = {'min' : grid_xmin, 'max' : grid_xmax, 'incr': grid_dx}
+			grid_meta['y'] = {'min' : grid_ymin, 'max' : grid_ymax, 'incr': grid_dy}
+
+		else:
+			tmp_scatdat_x, tmp_scatdat_y = scatdat_x, scatdat_y
+			grid_xmin, grid_xmax, grid_dx = grid_meta['x']['min'], grid_meta['x']['max'], grid_meta['x']['incr']
+			grid_ymin, grid_ymax, grid_dy = grid_meta['y']['min'], grid_meta['y']['max'], grid_meta['y']['incr']
+		
+		grid_xx, grid_yy = Georadii.grid_define(grid_meta)
+		
+		if dryrun:
+			return grid_xx, grid_yy
+		else:
+			grid_dim = (grid_xx.shape[0], grid_xx.shape[1], scatdat_data.shape[2] if len(scatdat_data.shape) > 2 else 0)
+
+			if grid_dim[2] == 0:
+				datout = np.zeros_like(grid_xx)
+				datout[:, :] = scipy.interpolate.griddata((scatdat_x.flatten(), scatdat_y.flatten()), scatdat_data.flatten(),
+					(grid_xx, grid_yy), method='linear')
+			elif grid_dim[2] >= 1:
+				datout = np.zeros((grid_xx.shape[0], grid_xx.shape[1], grid_dim[2]))
+				for ich in range(grid_dim[2]):
+					datout[:, :, ich] = scipy.interpolate.griddata((scatdat_x.flatten(), scatdat_y.flatten()), scatdat_data[:, :, ich].flatten(),
+						(grid_xx, grid_yy), method='linear')
+			
+			return grid_xx, grid_yy, datout
 	
 	@staticmethod
 	def grid_define(grid_meta):
