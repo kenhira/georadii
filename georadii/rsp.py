@@ -195,8 +195,8 @@ class RSP_arcsix:
 			else:
 				print('RSP images for [%s]' % self._flights[date]['description'])
 	
-	def load_rsp_h5(self, start_time, end_time, location='.'):
-		self.h5_allfiles = self.locate_allh5(location=location)
+	def load_rsp_h5(self, start_time, end_time, prod='L1C', location='.'):
+		self.h5_allfiles = self.locate_allh5(location=location, prod=prod)
 
 		st_dt = datetime.datetime.strptime(self.date + ' ' + start_time, '%Y-%m-%d %H:%M:%S')
 		# if campaign.lower() == 'camp2ex' and st_dt.hour < 15: st_dt += datetime.timedelta(days=1)
@@ -228,32 +228,45 @@ class RSP_arcsix:
 				nscan   = h5_file['dim_Scans'][...].shape[0]
 				nsector = h5_file['dim_Scene_Sectors'][...].shape[0]
 				nband   = h5_file['dim_Bands'][...].shape[0]
-				ground_latitude  = h5_file['Geometry']['Ground_Latitude'][...][0:2, 0:nscan, 0:nsector]
-				ground_longitude = h5_file['Geometry']['Ground_Longitude'][...][0:2, 0:nscan, 0:nsector]
-				viewing_azimuth  = h5_file['Geometry']['Viewing_Azimuth'][...][0:2, 0:nscan, 0:nsector]
-				viewing_zenith   = 180. - h5_file['Geometry']['Viewing_Zenith'][...][0:2, 0:nscan, 0:nsector]
-				platform_latitude  = h5_file['Platform']['Platform_Latitude'][...][0:nscan]
-				platform_longitude = h5_file['Platform']['Platform_Longitude'][...][0:nscan]
-				# time_scan        = h5_file['Platform']['Fraction_of_Day'][...][0:nscan]
-				time_pixel       = h5_file['Geometry']['Measurement_Time'][...][0:2, 0:nscan, 0:nsector]
-				solar_cons       = h5_file['Calibration']['Solar_Constant'][...][0:nband]
+				if prod == 'L1C':
+					ground_latitude  = h5_file['Geometry']['Ground_Latitude'][...][0:2, 0:nscan, 0:nsector]
+					ground_longitude = h5_file['Geometry']['Ground_Longitude'][...][0:2, 0:nscan, 0:nsector]
+					viewing_azimuth  = h5_file['Geometry']['Viewing_Azimuth'][...][0:2, 0:nscan, 0:nsector]
+					viewing_zenith   = 180. - h5_file['Geometry']['Viewing_Zenith'][...][0:2, 0:nscan, 0:nsector]
+					platform_latitude  = h5_file['Platform']['Platform_Latitude'][...][0:nscan]
+					platform_longitude = h5_file['Platform']['Platform_Longitude'][...][0:nscan]
+					# time_scan        = h5_file['Platform']['Fraction_of_Day'][...][0:nscan]
+					time_pixel       = h5_file['Geometry']['Measurement_Time'][...][0:2, 0:nscan, 0:nsector]
+					solar_cons       = h5_file['Calibration']['Solar_Constant'][...][0:nband]
+					glat_arr = np.append(glat_arr, ground_latitude[0, 0:nscan, 0:nsector].flatten())
+					glon_arr = np.append(glon_arr, ground_longitude[0, 0:nscan, 0:nsector].flatten())
+					vza_arr  = np.append(vza_arr, viewing_zenith[0, 0:nscan, 0:nsector].flatten())
+					vaa_arr  = np.append(vaa_arr, viewing_azimuth[0, 0:nscan, 0:nsector].flatten())
+					time_arr = np.append(time_arr, Time(time_pixel[0, 0:nscan, 0:nsector].flatten(), format='mjd').to_datetime())
+				elif prod == 'L1B':
+					viewing_azimuth  = h5_file['Geometry']['Viewing_Azimuth'][...][0:nscan, 0:nsector]
+					viewing_zenith   = 180. - h5_file['Geometry']['Viewing_Zenith'][...][0:nscan, 0:nsector]
+					platform_latitude  = h5_file['Platform']['Platform_Latitude'][...][0:nscan]
+					platform_longitude = h5_file['Platform']['Platform_Longitude'][...][0:nscan]
+					# time_scan        = h5_file['Platform']['Fraction_of_Day'][...][0:nscan]
+					time_pixel       = h5_file['Geometry']['Measurement_Time'][...][0:nscan, 0:nsector]
+					solar_cons       = h5_file['Calibration']['Solar_Constant'][...][0:nband]
+					vza_arr  = np.append(vza_arr, viewing_zenith[0:nscan, 0:nsector].flatten())
+					vaa_arr  = np.append(vaa_arr, viewing_azimuth[0:nscan, 0:nsector].flatten())
+					time_arr = np.append(time_arr, Time(time_pixel[0:nscan, 0:nsector].flatten(), format='mjd').to_datetime())
 				intensity_1   = h5_file['Data']['Intensity_1'][...][0:nscan, 0:nsector, 0:nband]
 				intensity_2   = h5_file['Data']['Intensity_2'][...][0:nscan, 0:nsector, 0:nband]
 				intensity_avg = (intensity_1 + intensity_2) / 2.
 				radiance      = intensity_avg*solar_cons[np.newaxis, np.newaxis, 0:nband]/(np.pi*1000.)
-				glat_arr = np.append(glat_arr, ground_latitude[0, 0:nscan, 0:nsector].flatten())
-				glon_arr = np.append(glon_arr, ground_longitude[0, 0:nscan, 0:nsector].flatten())
-				vza_arr  = np.append(vza_arr, viewing_zenith[0, 0:nscan, 0:nsector].flatten())
-				vaa_arr  = np.append(vaa_arr, viewing_azimuth[0, 0:nscan, 0:nsector].flatten())
 				plat_arr = np.append(plat_arr, np.repeat(platform_latitude[0:nscan], nsector).flatten())
 				plon_arr = np.append(plon_arr, np.repeat(platform_longitude[0:nscan], nsector).flatten())
 				# time_arr = np.append(time_arr, np.array([datetime.strptime(start_time_str.split(' ')[0] + ' 00:00', '%Y-%m-%d %H:%M') + datetime.timedelta(days=fofd) for fofd in time_scan[0:nscan]]))
-				time_arr = np.append(time_arr, Time(time_pixel[0, 0:nscan, 0:nsector].flatten(), format='mjd').to_datetime())
 				intens_arr = np.append(intens_arr, radiance[0:nscan, 0:nsector, 0:nband].reshape(nscan*nsector, nband), axis=0)
 		ipixels = np.where((st_dt + self.t_offset < time_arr) & (time_arr < en_dt + self.t_offset))[0]
 		colpix  = np.zeros((len(ipixels), 1, 3))
-		latpix  = np.zeros((len(ipixels), 1))
-		lonpix  = np.zeros((len(ipixels), 1))
+		if prod == 'L1C':
+			latpix  = np.zeros((len(ipixels), 1))
+			lonpix  = np.zeros((len(ipixels), 1))
 		platpix  = np.zeros((len(ipixels), 1))
 		plonpix  = np.zeros((len(ipixels), 1))
 		vzapix  = np.zeros((len(ipixels), 1))
@@ -265,8 +278,9 @@ class RSP_arcsix:
 		colpix[:, 0, 0]  = intens_arr[ipixels, 3]
 		colpix[:, 0, 1]  = intens_arr[ipixels, 2]
 		colpix[:, 0, 2]  = intens_arr[ipixels, 1]
-		latpix[:, 0]     = glat_arr[ipixels]
-		lonpix[:, 0]     = glon_arr[ipixels]
+		if prod == 'L1C':
+			latpix[:, 0]     = glat_arr[ipixels]
+			lonpix[:, 0]     = glon_arr[ipixels]
 		vzapix[:, 0]     = vza_arr[ipixels]
 		vaapix[:, 0]     = vaa_arr[ipixels]
 		platpix[:, 0]    = plat_arr[ipixels]
@@ -274,14 +288,17 @@ class RSP_arcsix:
 		# timepix[:, 0]    = time_arr[ipixels]
 		img = {'data': colpix, 'type': 'radiance', 'unit': 'radiance', 'wavelength': wvls[np.array([3, 2, 1])]}
 		# latlon_meta = {'longeo': lonpix, 'latgeo': latpix}#, 'timepix': timepix}
-		latlon_meta = {'longeo': lonpix, 'latgeo': latpix, 'vza': vzapix, 'vaa': vaapix, 'lonplat': plonpix, 'latplat': platpix}#, 'timepix': timepix}
+		if prod == 'L1C':
+			latlon_meta = {'longeo': lonpix, 'latgeo': latpix, 'vza': vzapix, 'vaa': vaapix, 'lonplat': plonpix, 'latplat': platpix}#, 'timepix': timepix}
+		elif prod == 'L1B':
+			latlon_meta = {'vza': vzapix, 'vaa': vaapix, 'lonplat': plonpix, 'latplat': platpix}#, 'timepix': timepix}
 		return img, latlon_meta
 	
-	def locate_allh5(self, location='.'):
+	def locate_allh5(self, location='.', prod='L1C'):
 		yyyy, mm, dd = self.date.split('-')
 		if True:
 			# path = os.path.join(location, 'ARCSIX-RSP-L1C_P3B_%s%s%s_R01/*.h5' % (yyyy, mm, dd))
-			path = os.path.join(location, 'RSP1-L1C_P3_%s%s%s_R*/*.h5' % (yyyy, mm, dd)) #RSP1-L1C_P3_20240605_R02
+			path = os.path.join(location, 'RSP1-%s_P3_%s%s%s_R*/*.h5' % (prod, yyyy, mm, dd)) #RSP1-L1C_P3_20240605_R02
 			# path = location
 		h5_allfiles = glob.glob(path, recursive=True)
 		if len(h5_allfiles) == 0:
