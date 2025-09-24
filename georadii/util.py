@@ -276,24 +276,28 @@ def get_spec_resp(spec_resp_txt, instrument='cam'):
 
 def get_ssfr_flux(f_R0, fhsk, start_time, end_time, direction='zen', flux_source='ssfr', instrument='cam', spec_resp_txt="./response_ARCSIX.txt", method='mean'):
     if direction == 'zen' or direction == 'down' or direction == 'dn' or direction == 'downwelling' or direction == 'downw':
-        # typ = 'zen'
+        typ = 'zen'
         suffix = '_dn'
     elif direction == 'nadir' or direction == 'nad' or direction == 'up' or direction == 'upwelling' or direction == 'upw':
-        # typ = 'nad'
+        typ = 'nad'
         suffix = '_up'
     else:
         msg = 'Unknown direction: %s' % direction
         raise ValueError(msg)
     ### Open SSFR file ###
     with h5py.File(f_R0, 'r') as f:
-        # tmhr_all = f['tmhr'][...]
         if flux_source == 'ssfr':
-            # rad_all = f['%s/flux' % typ][...]
-            # wvl = f['%s/wvl' % typ][...] # nm
-            # tmhr_ssfr = f['tmhr'][...]
-            rad_all = f['f%s' % suffix][...]
-            wvl = f['wvl%s' % suffix][...]
-            tmhr_ssfr = f['time'][...] / 3600. # convert from seconds to hours
+            if f_R0.lower()[-5] == 'v':
+                rad_all = f['%s/flux' % typ][...]
+                wvl = f['%s/wvl' % typ][...]
+                tmhr_ssfr = f['tmhr'][...]
+            elif f_R0.lower()[-5] == 'r':
+                rad_all = f['f%s' % suffix][...]
+                wvl = f['wvl%s' % suffix][...]
+                tmhr_ssfr = f['time'][...] / 3600. # convert from seconds to hours
+            else:
+                msg = 'Unknown file format: %s' % f_R0
+                raise ValueError(msg)
         else:
             msg = 'Unknown flux source: %s' % flux_source
             raise ValueError(msg)
