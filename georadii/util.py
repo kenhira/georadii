@@ -274,7 +274,7 @@ def get_spec_resp(spec_resp_txt, instrument='cam'):
         # print('Center wavelength: %9.2f nm' % np.trapz(wavelengths*spec_resp[i, :], x=wavelengths))
     return wavelengths, spec_resp, nch
 
-def get_ssfr_flux(f_R0, fhsk, start_time, end_time, direction='zen', flux_source='ssfr', instrument='cam', spec_resp_txt="./response_ARCSIX.txt", method='mean'):
+def get_ssfr_flux(f_R0, fhsk, start_time, end_time, direction='zen', flux_source='ssfr', instrument='cam', spec_resp_txt="./response_ARCSIX.txt", method='mean', tilt_thres=2.5):
     if direction == 'zen' or direction == 'down' or direction == 'dn' or direction == 'downwelling' or direction == 'downw':
         typ = 'zen'
         suffix = '_dn'
@@ -307,7 +307,7 @@ def get_ssfr_flux(f_R0, fhsk, start_time, end_time, direction='zen', flux_source
     pit = np.interp(tmhr_ssfr, tmhr_hsk, hsk_data['pit'])
     rol = np.interp(tmhr_ssfr, tmhr_hsk, hsk_data['rol'])
 
-    level = np.sqrt(pit**2. + rol**2.) < 2.5 # check if the aircraft is not tilted too much
+    level = np.sqrt(pit**2. + rol**2.) < tilt_thres # check if the aircraft is not tilted too much
     
     st_dt = datetime.datetime.strptime(start_time, '%H:%M:%S')
     en_dt = datetime.datetime.strptime(end_time,   '%H:%M:%S')
@@ -360,7 +360,7 @@ def get_ssfr_flux(f_R0, fhsk, start_time, end_time, direction='zen', flux_source
             raise ValueError(msg)
 
 
-def get_hsr_flux(f_R0, fhsk, start_time, end_time, direction='zen', flux_source='hsr', instrument='cam', spec_resp_txt="./response_ARCSIX.txt", method='mean'):
+def get_hsr_flux(f_R0, fhsk, start_time, end_time, direction='zen', flux_source='hsr', instrument='cam', spec_resp_txt="./response_ARCSIX.txt", method='mean', tilt_thres=2.5):
     if direction == 'zen' or direction == 'down' or direction == 'dn' or direction == 'downwelling' or direction == 'downw':
         suffix = '_dn'
     elif direction == 'nadir' or direction == 'up' or direction == 'upwelling' or direction == 'upw':
@@ -387,7 +387,7 @@ def get_hsr_flux(f_R0, fhsk, start_time, end_time, direction='zen', flux_source=
     pit = np.interp(tmhr_hsr, tmhr_hsk, hsk_data['pit'])
     rol = np.interp(tmhr_hsr, tmhr_hsk, hsk_data['rol'])
 
-    level = np.sqrt(pit**2. + rol**2.) < 2.5 # check if the aircraft is not tilted too much
+    level = np.sqrt(pit**2. + rol**2.) < tilt_thres # check if the aircraft is not tilted too much
     
     st_dt = datetime.datetime.strptime(start_time, '%H:%M:%S')
     en_dt = datetime.datetime.strptime(end_time,   '%H:%M:%S')
