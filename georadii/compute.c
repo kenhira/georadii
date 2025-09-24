@@ -9,6 +9,7 @@
 static PyObject* gridding2d_weight(PyObject *self, PyObject *args) {
     PyArrayObject *x_array, *y_array, *weights_array;
     double x_min, x_max, x_bin_size, y_min, y_max, y_bin_size;
+    Py_ssize_t i;
 
     // Parse NumPy array inputs and binning parameters
     if (!PyArg_ParseTuple(args, "O!O!O!dddddd", 
@@ -83,7 +84,7 @@ static PyObject* gridding2d_weight(PyObject *self, PyObject *args) {
 
     // Separate loops for 1D and 2D weight cases
     if (is_1d_weights) {
-        for (Py_ssize_t i = 0; i < num_points; i++) {
+        for (i = 0; i < num_points; i++) {
             int x_idx = (int)ceil((x_data[i] - x_min) / x_bin_size) - 1;
             int y_idx = (int)ceil((y_data[i] - y_min) / y_bin_size) - 1;
 
@@ -98,7 +99,7 @@ static PyObject* gridding2d_weight(PyObject *self, PyObject *args) {
             hist_data[x_idx * y_bins + y_idx] += weights_data[i];
         }
     } else {
-        for (Py_ssize_t i = 0; i < num_points; i++) {
+        for (i = 0; i < num_points; i++) {
             int x_idx = (int)ceil((x_data[i] - x_min) / x_bin_size) - 1;
             int y_idx = (int)ceil((y_data[i] - y_min) / y_bin_size) - 1;
 
@@ -109,7 +110,9 @@ static PyObject* gridding2d_weight(PyObject *self, PyObject *args) {
                 continue;
             }
 
-            for (int w = 0; w < n_weights; w++) {
+            int w;
+
+            for (w = 0; w < n_weights; w++) {
                 hist_data[(x_idx * y_bins + y_idx) * n_weights + w] += weights_data[i * n_weights + w];
             }
         }
@@ -122,6 +125,7 @@ static PyObject* gridding2d_weight(PyObject *self, PyObject *args) {
 static PyObject* gridding2d_count(PyObject *self, PyObject *args) {
     PyArrayObject *x_array, *y_array;
     double x_min, x_max, x_bin_size, y_min, y_max, y_bin_size;
+    Py_ssize_t i;
 
     // Parse NumPy array inputs and binning parameters
     if (!PyArg_ParseTuple(args, "O!O!dddddd", 
@@ -152,7 +156,7 @@ static PyObject* gridding2d_count(PyObject *self, PyObject *args) {
     // Explicitly initialize histogram to zero using memset
     memset(hist_data, 0, x_bins * y_bins * sizeof(int64_t));
 
-    for (Py_ssize_t i = 0; i < num_points; i++) {
+    for (i = 0; i < num_points; i++) {
         int x_idx = (int)ceil((x_data[i] - x_min) / x_bin_size) - 1;
         int y_idx = (int)ceil((y_data[i] - y_min) / y_bin_size) - 1;
 
@@ -174,6 +178,7 @@ static PyObject* gridding2d_count(PyObject *self, PyObject *args) {
 static PyObject* gridding2d_flag(PyObject *self, PyObject *args) {
     PyArrayObject *x_array, *y_array, *flag_array;
     double x_min, x_max, x_bin_size, y_min, y_max, y_bin_size;
+    Py_ssize_t i;
 
     // Parse NumPy array inputs and binning parameters
     if (!PyArg_ParseTuple(args, "O!O!O!dddddd", 
@@ -211,7 +216,7 @@ static PyObject* gridding2d_flag(PyObject *self, PyObject *args) {
     // Explicitly initialize histogram to zero using memset
     memset(hist_data, 0, x_bins * y_bins * sizeof(uint8_t));
 
-    for (Py_ssize_t i = 0; i < num_points; i++) {
+    for (i = 0; i < num_points; i++) {
         int x_idx = (int)ceil((x_data[i] - x_min) / x_bin_size) - 1;
         int y_idx = (int)ceil((y_data[i] - y_min) / y_bin_size) - 1;
 
