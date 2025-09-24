@@ -704,9 +704,15 @@ class Camera_arcsix:
 		fits_allfiles = sorted(fits_allfiles)
 		return fits_allfiles
 	
-	def rad_and_geom_from_fits(self, fits_filename, flipud=None, fliplr=None, mask_fits_filename=None, mask_aircraft_shadow=True, saturation_val=None):
+	def rad_and_geom_from_fits(self, fits_filename, flipud=None, fliplr=None, mask_fits_filename=None, mask_aircraft_shadow=True, saturation_val=None, t_mod=0., stat_mod={}):
 		image, header = self.radiance_from_fits(fits_filename, flipud=flipud, fliplr=fliplr, mask_fits_filename=mask_fits_filename, saturation_val=saturation_val)
-		t_act, aircraft_status = self.interpolate_hsk_for_fits(header['DATE-OBS'])
+		t_act, aircraft_status = self.interpolate_hsk_for_fits(header['DATE-OBS'], t_mod=t_mod)
+		if len(stat_mod) > 0:
+			for key in stat_mod:
+				if key in aircraft_status:
+					aircraft_status[key] += stat_mod[key]
+				else:
+					print('Warning: key %s not found in aircraft status.' % key)
 		vza, vaa = self.calc_viewing_geometry(aircraft_status['rol'], aircraft_status['pit'], aircraft_status['hed'])
 		image['flag'][np.isnan(vza)] |= 4 # Oblique view flag
 		image['geometry'] = {'vza': vza, 'vaa': vaa, 'centerpix': self.centerpix, 'type' : 'viewing geometry', 'unit' : 'radian'}
@@ -871,12 +877,12 @@ class Camera_arcsix:
 	
 	# def interpolate_hsk_for_fits(self, fits_fn):
 		# t_fn  = datetime.datetime.strptime(self.date + ' ' + fits_fn[-14:-6], '%Y-%m-%d %H_%M_%S')
-	def interpolate_hsk_for_fits(self, date_obs_str):
+	def interpolate_hsk_for_fits(self, date_obs_str, t_mod=0.):
 		t_fn  = datetime.datetime.strptime(self.date + ' ' + date_obs_str.split('T')[1][:-1], '%Y-%m-%d %H:%M:%S.%f')
 		tt_fn = datetime.datetime.strptime(date_obs_str.split('T')[1][:-1], '%H:%M:%S.%f')
 		to_s = self.to_s1 + (tt_fn - self.to_t1).total_seconds() * (self.to_s2 - self.to_s1) / (self.to_t2 - self.to_t1).total_seconds()
 		# print('Time offset: %s' % to_s)
-		t_offset = datetime.timedelta(days=self.to_d, seconds=to_s)
+		t_offset = datetime.timedelta(days=self.to_d, seconds=to_s + t_mod)
 		t_act = t_fn + t_offset
 		aircraft_status = self.interpolate_hsk(t_act)
 		return t_act, aircraft_status
