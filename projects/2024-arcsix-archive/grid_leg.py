@@ -268,6 +268,7 @@ if __name__ == "__main__":
             lon_xx, lat_yy = Georadii.grid_define(gridding_meta)
 
             # Retrieve all the image files for the specified time period
+            # fits_list = camtool.load_fits(seg_start_time, seg_end_time, location='workstation')[::1]
             fits_list = camtool.load_fits(seg_start_time, seg_end_time, location='ARCSIX2KSS')[::1]
             # fits_list = camtool.load_fits(seg_start_time, seg_end_time, location='argus')[::1]
 
