@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import datetime
 import cartopy.crs as ccrs
 from matplotlib.ticker import FixedLocator
+from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
 import netCDF4 as nc
 import bz2
 
@@ -12,6 +13,8 @@ from georadii.util import calc_viewing_angles, write_surface_grid_to_nc_archive,
 
 from cartopy.crs import Projection, Mercator
 from cartopy.geodesic import Geodesic
+from scipy.spatial import ConvexHull
+from shapely.geometry import LineString, Polygon, Point
 import shapely.geometry as sgeom
 class Orthographic_rotated(Projection):
     def __init__(self, central_longitude=0.0, central_latitude=0.0, azimuth=0.0,
@@ -67,10 +70,25 @@ class Orthographic_rotated(Projection):
     def y_limits(self):
         return self._ylim
 
-if __name__ == "__main__":
-    date       = '2024-06-05'
+def _nice_step(rng, nticks=6):
+    # Choose 1,2,5 * 10**exp step so ticks are "nice"
+    raw = float(rng) / float(nticks)
+    exp = np.floor(np.log10(raw))
+    frac = raw / 10**exp
+    if frac <= 1.0:
+        mult = 1.0
+    elif frac <= 2.0:
+        mult = 2.0
+    elif frac <= 5.0:
+        mult = 5.0
+    else:
+        mult = 10.0
+    return mult * 10**exp
 
-    st_en_times = [
+if __name__ == "__main__":
+    # date       = '2024-06-05'
+
+    # st_en_times = [
         # ['14:20:00', '14:20:59'], # test
         # ['14:23:00', '14:23:29'], # test
         # ['14:36:00', '14:36:29'], # test
@@ -105,17 +123,18 @@ if __name__ == "__main__":
     #     # ['14:34:18', '14:35:00'],
     #     # ['14:35:19', '15:15:10'],
         # ['15:19:43', '15:55:47'],
-        ['16:00:55', '16:37:54'],
+        # ['16:00:55', '16:37:54'],
     #     # ['16:40:03', '17:11:33'],
     #     # ['17:11:43', '17:28:48'],
     #     # ['17:29:00', '17:31:25'],
     #     # ['17:31:34', '17:33:20'],
     #     # ['17:33:46', '17:35:22'],
     #     # ['17:35:26', '18:00:00'],
-    ]
+    # ]
 
-    # date       = '2024-07-29'
-    # st_en_times = [
+    date       = '2024-07-29'
+    st_en_times = [
+        # ['16:10:30', '16:11:45'],
     #     ['14:00:00', '14:00:15'],
     #     # ['12:24:59', '12:33:38'],
     #     # ['12:34:14', '12:49:01'],
@@ -167,7 +186,7 @@ if __name__ == "__main__":
     #     # ['15:56:27', '15:56:50'],
     #     # ['15:58:02', '15:58:54'],
     #     # ['16:01:06', '16:01:19'],
-    #     # ['16:01:37', '16:17:34'],
+        ['16:01:37', '16:17:34'],
     #     # ['16:20:55', '16:21:34'],
     #     # ['16:21:38', '16:25:00'],
     #     # ['16:25:04', '16:25:20'],
@@ -194,7 +213,7 @@ if __name__ == "__main__":
     #     # ['17:55:00', '17:58:21'],
     #     # ['17:58:22', '17:58:40'],
     #     # ['17:58:49', '18:00:00'],
-    # ]
+    ]
 
     # Make the directory to store the output pngs
     dirname = 'out_gridding'
@@ -269,8 +288,8 @@ if __name__ == "__main__":
 
             # Retrieve all the image files for the specified time period
             # fits_list = camtool.load_fits(seg_start_time, seg_end_time, location='workstation')[::1]
-            fits_list = camtool.load_fits(seg_start_time, seg_end_time, location='ARCSIX2KSS')[::1]
-            # fits_list = camtool.load_fits(seg_start_time, seg_end_time, location='argus')[::1]
+            # fits_list = camtool.load_fits(seg_start_time, seg_end_time, location='ARCSIX2KSS')[::1]
+            fits_list = camtool.load_fits(seg_start_time, seg_end_time, location='argus')[::1]
 
             nearest_fits = np.zeros_like(lon_xx, dtype=np.int32)
             imgout_agg = np.zeros((lon_xx.shape[0], lon_xx.shape[1], 3))
@@ -282,26 +301,27 @@ if __name__ == "__main__":
             saa_grid_agg = np.zeros_like(lon_xx)
             ncount_agg = np.zeros_like(lon_xx)
             dist = np.full_like(lon_xx, np.inf)
-            latlon_aircraft = np.zeros((len(fits_list), 2))
+            latlon_aircraft = np.zeros((len(fits_list), 3))
             for ifits, fits in enumerate(fits_list):
                 aircraft_status, t_act = camtool.hsk_from_fits(fits)
                 print(fits, t_act)
                 _, dist1 = calc_bearing(aircraft_status['lon'], aircraft_status['lat'], lon_xx, lat_yy)
                 latlon_aircraft[ifits, 0] = aircraft_status['lat']
                 latlon_aircraft[ifits, 1] = aircraft_status['lon']
+                latlon_aircraft[ifits, 2] = aircraft_status['alt']
                 nearest_fits[dist1 < dist] = ifits
                 dist[dist1 < dist] = dist1[dist1 < dist]
             
-            fig_nearest_fits = plt.figure(figsize=(7, 7))
-            cartopy_proj = ccrs.Orthographic(central_longitude=xcenter, central_latitude=ycenter,)
-            ax_nearest_fits = fig_nearest_fits.add_subplot(111, projection=cartopy_proj)
-            mesh = ax_nearest_fits.pcolormesh(lon_xx, lat_yy, nearest_fits, transform=ccrs.PlateCarree(), cmap='viridis', zorder=10)
-            ax_nearest_fits.scatter(latlon_aircraft[:, 1], latlon_aircraft[:, 0], marker='+', color='red', transform=ccrs.PlateCarree(), zorder=10)
-            ax_nearest_fits.set_title('Nearest Fits')
-            cbar = plt.colorbar(mesh, ax=ax_nearest_fits, orientation='vertical', pad=0.05, aspect=50)
-            cbar.set_label('Fits Index')
-            plt.savefig('%s/nearest_fits.png' % dir2name, dpi=300)
-            plt.close(fig_nearest_fits)
+            # fig_nearest_fits = plt.figure(figsize=(7, 7))
+            # cartopy_proj = ccrs.Orthographic(central_longitude=xcenter, central_latitude=ycenter,)
+            # ax_nearest_fits = fig_nearest_fits.add_subplot(111, projection=cartopy_proj)
+            # mesh = ax_nearest_fits.pcolormesh(lon_xx, lat_yy, nearest_fits, transform=ccrs.PlateCarree(), cmap='viridis', zorder=10)
+            # ax_nearest_fits.scatter(latlon_aircraft[:, 1], latlon_aircraft[:, 0], marker='+', color='red', transform=ccrs.PlateCarree(), zorder=10)
+            # ax_nearest_fits.set_title('Nearest Fits')
+            # cbar = plt.colorbar(mesh, ax=ax_nearest_fits, orientation='vertical', pad=0.05, aspect=50)
+            # cbar.set_label('Fits Index')
+            # plt.savefig('%s/nearest_fits.png' % dir2name, dpi=300)
+            # plt.close(fig_nearest_fits)
 
             for ifits, fits_file in enumerate(fits_list):
                 # Extract the image file and the image metadata
@@ -336,10 +356,13 @@ if __name__ == "__main__":
             write_surface_grid_to_nc_archive(output_ncfile, imgout_agg[:, :, chst:chst + nch], lon_xx, lat_yy, vza_grid_agg, vaa_grid_agg, sza_grid_agg, saa_grid_agg, \
                                                 ncount_agg, date, t_act)
 
-            # Compress the netCDF file using bzip2
-            with open(output_ncfile, 'rb') as f_in:
-                with bz2.open(output_ncfile + '.bz2', 'wb') as f_out:
-                    f_out.writelines(f_in)
+            # # Compress the netCDF file using bzip2
+            # with open(output_ncfile, 'rb') as f_in:
+            #     with bz2.open(output_ncfile + '.bz2', 'wb') as f_out:
+            #         f_out.writelines(f_in)
+            # # Optionally, remove the original uncompressed netCDF file
+            # import os
+            # os.remove(output_ncfile)
 
             # Plot the gridded image
             # xmin, xmax = xcenter - 0.7, xcenter + 0.7
@@ -379,58 +402,280 @@ if __name__ == "__main__":
             # ax.text(0.95, 0.95, f'res_m: {res_m} m', transform=ax.transAxes, fontsize=10, zorder=100,
             #         verticalalignment='top', horizontalalignment='right', bbox=dict(facecolor='white', alpha=0.8))
             # ax.set_extent([xmin, xmax, ymin, ymax], crs=ccrs.PlateCarree())
-            g1 = ax.gridlines(lw=0.5, color='grey', draw_labels=True, ls='-', zorder=200)
-            g1.xlocator = FixedLocator(np.arange(-180, 180.1, 0.2*10.**(np.round(np.log10(np.abs(xmax - xmin))))))
-            g1.ylocator = FixedLocator(np.arange(-90.0, 89.9, 0.2*10.**(np.round(np.log10(np.abs(ymax - ymin))))))
+            
+            # Compute the four corners of the region in lon/lat
+            # Use the edge points of lon_xx and lat_yy to define the corners
+            corners_lonlat = np.array([
+                [lon_xx[0, 0],     lat_yy[0, 0]],
+                [lon_xx[0, -1],    lat_yy[0, -1]],
+                [lon_xx[-1, -1],   lat_yy[-1, -1]],
+                [lon_xx[-1, 0],    lat_yy[-1, 0]]
+            ])
+            # Project the corners to the map projection
+            corners_proj = cartopy_proj.transform_points(ccrs.PlateCarree(),
+                                                        corners_lonlat[:, 0], corners_lonlat[:, 1])
+            # Get min/max in projected coordinates
+            x_proj_min = np.min(corners_proj[:, 0])
+            x_proj_max = np.max(corners_proj[:, 0])
+            y_proj_min = np.min(corners_proj[:, 1])
+            y_proj_max = np.max(corners_proj[:, 1])
+
+            # Set the extent in projection coordinates
+            ax.set_extent([x_proj_min, x_proj_max, y_proj_min, y_proj_max], crs=cartopy_proj)
+            
+            # Add gridlines with a fancy design: alternating colors and custom label backgrounds
+            xstep = _nice_step(np.abs(xmax - xmin), nticks=10)
+            ystep = _nice_step(np.abs(ymax - ymin), nticks=10)
+            xgrid = np.arange(np.floor(xmin/xstep)*xstep, np.ceil(xmax/xstep)*xstep + 1e-12, xstep)
+            ygrid = np.arange(np.floor(ymin/ystep)*ystep, np.ceil(ymax/ystep)*ystep + 1e-12, ystep)
+            # g1 = ax.gridlines(lw=0.5, color='gray', draw_labels=True, ls='-')
+            # g1.xlocator = FixedLocator(xgrid)
+            # g1.ylocator = FixedLocator(ygrid)
+
+            # Define the projected panel polygon using the four corners
+            panel_poly = Polygon([
+                (corners_proj[0, 0], corners_proj[0, 1]),
+                (corners_proj[1, 0], corners_proj[1, 1]),
+                (corners_proj[2, 0], corners_proj[2, 1]),
+                (corners_proj[3, 0], corners_proj[3, 1])
+            ])
+
+            # Draw longitude gridlines
+            for xval in xgrid:
+                # Create a line in lon-lat space at constant longitude
+                lons = np.full_like(ygrid, xval)
+                lats = ygrid
+                # Project to panel coordinates
+                pts_proj = cartopy_proj.transform_points(ccrs.PlateCarree(), lons, lats)
+                line_proj = LineString([(pt[0], pt[1]) for pt in pts_proj])
+                # Intersect with panel polygon
+                inter = panel_poly.intersection(line_proj)
+                # inter can be MultiLineString, LineString, or empty
+                if inter.is_empty:
+                    continue
+                if inter.geom_type == 'MultiLineString':
+                    lines = list(inter.geoms)
+                elif inter.geom_type == 'LineString':
+                    lines = [inter]
+                else:
+                    continue
+                for seg in lines:
+                    xys = np.array(seg.coords)
+                    ax.plot(xys[:, 0], xys[:, 1], color='gray', lw=0.7, zorder=20)
+                    # Label at both ends
+                    for pt in [xys[0], xys[-1]]:
+                        # Inverse project to lon/lat for label
+                        lonlat = ccrs.PlateCarree().transform_point(pt[0], pt[1], cartopy_proj)
+                        # Determine which edge the point is on
+                        x, y = pt[0], pt[1]
+                        x0, x1 = corners_proj[:, 0].min(), corners_proj[:, 0].max()
+                        y0, y1 = corners_proj[:, 1].min(), corners_proj[:, 1].max()
+                        pad = 8  # points
+                        # Default alignment and offset
+                        ha, va = 'center', 'center'
+                        dx, dy = 0, 0
+                        # Check which edge: left, right, top, bottom
+                        x_range = x1 - x0
+                        y_range = y1 - y0
+                        edge_tol_x = 0.02 * x_range
+                        edge_tol_y = 0.02 * y_range
+                        if np.abs(x - x0) < edge_tol_x:
+                            ha = 'right'
+                            dx = -pad
+                        elif np.abs(x - x1) < edge_tol_x:
+                            ha = 'left'
+                            dx = pad
+                        if np.abs(y - y1) < edge_tol_y:
+                            va = 'bottom'
+                            dy = pad
+                        elif np.abs(y - y0) < edge_tol_y:
+                            va = 'top'
+                            dy = -pad
+                        # Transform offset from points to display, then to data
+                        trans = ax.transData + plt.matplotlib.transforms.ScaledTranslation(dx/72, dy/72, ax.figure.dpi_scale_trans)
+                        ax.text(
+                            x, y, LONGITUDE_FORMATTER(lonlat[0]), fontsize=8, color='black',
+                            ha=ha, va=va,
+                            bbox=dict(facecolor='white', alpha=0.7, edgecolor='none'),
+                            zorder=30, transform=trans
+                        )
+
+            # Draw latitude gridlines
+            for yval in ygrid:
+                # Create a line in lon-lat space at constant latitude
+                lons = xgrid
+                lats = np.full_like(xgrid, yval)
+                pts_proj = cartopy_proj.transform_points(ccrs.PlateCarree(), lons, lats)
+                line_proj = LineString([(pt[0], pt[1]) for pt in pts_proj])
+                inter = panel_poly.intersection(line_proj)
+                if inter.is_empty:
+                    continue
+                if inter.geom_type == 'MultiLineString':
+                    lines = list(inter.geoms)
+                elif inter.geom_type == 'LineString':
+                    lines = [inter]
+                else:
+                    continue
+                for seg in lines:
+                    xys = np.array(seg.coords)
+                    ax.plot(xys[:, 0], xys[:, 1], color='gray', lw=0.7, zorder=20)
+                    for pt in [xys[0], xys[-1]]:
+                        lonlat = ccrs.PlateCarree().transform_point(pt[0], pt[1], cartopy_proj)
+                        x, y = pt[0], pt[1]
+                        x0, x1 = corners_proj[:, 0].min(), corners_proj[:, 0].max()
+                        y0, y1 = corners_proj[:, 1].min(), corners_proj[:, 1].max()
+                        pad = 8  # points
+                        ha, va = 'center', 'center'
+                        dx, dy = 0, 0
+                        # Check which edge: left, right, top, bottom
+                        x_range = x1 - x0
+                        y_range = y1 - y0
+                        edge_tol_x = 0.02 * x_range
+                        edge_tol_y = 0.02 * y_range
+                        if np.abs(x - x0) < edge_tol_x:
+                            ha = 'right'
+                            dx = -pad
+                        elif np.abs(x - x1) < edge_tol_x:
+                            ha = 'left'
+                            dx = pad
+                        if np.abs(y - y1) < edge_tol_y:
+                            va = 'bottom'
+                            dy = pad
+                        elif np.abs(y - y0) < edge_tol_y:
+                            va = 'top'
+                            dy = -pad
+                        trans = ax.transData + plt.matplotlib.transforms.ScaledTranslation(dx/72, dy/72, ax.figure.dpi_scale_trans)
+                        ax.text(
+                            x, y, LATITUDE_FORMATTER(lonlat[1]), fontsize=8, color='black',
+                            ha=ha, va=va,
+                            bbox=dict(facecolor='white', alpha=0.7, edgecolor='none'),
+                            zorder=30, transform=trans
+                        )
+
+            # Add a north arrow at the top-left corner, just outside the panel
+            arrow_length_px = 20  # arrow length in pixels
+
+            # Place arrow just outside the axes (negative offset in axes fraction)
+            arrow_x_frac = 0.03  # left of the panel
+            arrow_y_frac = 1.06   # above the panel
+
+            # Calculate angle in radians for the arrow direction
+            theta = np.deg2rad(90. - leg_bearing)
+            dx_px = arrow_length_px * np.sin(theta)
+            dy_px = arrow_length_px * np.cos(theta)
+
+            # Start point in display coordinates
+            start_disp = ax.transAxes.transform((arrow_x_frac, arrow_y_frac))
+            end_disp = (start_disp[0] + dx_px, start_disp[1] + dy_px)
+
+            # Move the 'N' label farther from the arrow tip
+            n_offset_px = 10  # increase this value for more distance
+            n_disp = (end_disp[0] + n_offset_px * np.sin(theta), end_disp[1] + n_offset_px * np.cos(theta))
+
+            # Convert back to axes fraction for annotation
+            start_axes = ax.transAxes.inverted().transform(start_disp)
+            end_axes = ax.transAxes.inverted().transform(end_disp)
+            n_axes = ax.transAxes.inverted().transform(n_disp)
+
+            # Annotate 'N' a bit farther than the tip of the arrow
+            ax.annotate(
+                'N',
+                xy=n_axes,
+                xycoords='axes fraction',
+                ha='center',
+                va='center',
+                fontsize=10,
+                fontweight='bold',
+                color='black',
+                zorder=200
+            )
+
+            # Draw the arrow
+            ax.annotate(
+                '', 
+                xy=end_axes, 
+                xytext=start_axes, 
+                xycoords='axes fraction',
+                arrowprops=dict(facecolor='black', edgecolor='black', width=1.5, headwidth=6, headlength=8),
+                zorder=100
+            )
+            
             fig.suptitle('Gridded camera image: ' + date + ' ' + seg_start_time + '-' + seg_end_time, 
                          fontsize=12, verticalalignment='top', horizontalalignment='center')
             # Add annotation to the panel
             ax.annotate('Resolution: %.2f m' % res_m, (0.01, -0.05), xycoords='axes fraction', fontsize=10, zorder=100,
                         verticalalignment='top', horizontalalignment='left', bbox=dict(facecolor='white', edgecolor='none', alpha=0.8))
+            ax.annotate('Avg aircraft altitude: %.1f m' % np.nanmean(latlon_aircraft[:, 2]), (0.99, -0.05), xycoords='axes fraction', fontsize=10, zorder=100,
+                        verticalalignment='top', horizontalalignment='right', bbox=dict(facecolor='white', edgecolor='none', alpha=0.8))
             # Save the output png
             # fn_out = '%s/%04d.png' % (dir2name, ifits)
             fn_out = '%s/%s_%s_%s.png' % (dir2name, date.replace("-", ""), seg_start_time.replace(":", ""), seg_end_time.replace(":", ""))
-            fig.savefig(fn_out, dpi=1200)
+            fig.savefig(fn_out, dpi=600)
+            # fig.savefig(fn_out, dpi=1200)
 
-            fig1  = plt.figure(figsize=(18, 15))
-            ax1 = fig1.add_subplot(111, projection=cartopy_proj)
-            mesh1 = ax1.pcolormesh(lon_xx, lat_yy, img_trans2, transform=ccrs.PlateCarree(), zorder=10)
-            g1 = ax1.gridlines(lw=0.5, color='gray', draw_labels=True, ls='-')
-            g1.xlocator = FixedLocator(np.arange(-180, 180.1, 0.2*10.**(np.round(np.log10(np.abs(xmax - xmin))))))
-            g1.ylocator = FixedLocator(np.arange(-90.0, 89.9, 0.2*10.**(np.round(np.log10(np.abs(ymax - ymin))))))
-            g1.top_labels = False
-            g1.right_labels = False
+            # fig1  = plt.figure(figsize=(18, 15))
+            # ax1 = fig1.add_subplot(111, projection=cartopy_proj)
+            # mesh1 = ax1.pcolormesh(lon_xx, lat_yy, img_trans2, transform=ccrs.PlateCarree(), zorder=10)
+            # g1 = ax1.gridlines(lw=0.5, color='gray', draw_labels=True, ls='-')
+            # g1.xlocator = FixedLocator(np.arange(-180, 180.1, 0.2*10.**(np.round(np.log10(np.abs(xmax - xmin))))))
+            # g1.ylocator = FixedLocator(np.arange(-90.0, 89.9, 0.2*10.**(np.round(np.log10(np.abs(ymax - ymin))))))
+            # g1.top_labels = False
+            # g1.right_labels = False
 
-            fig1.suptitle('Gridded camera image: ' + date + ' ' + seg_start_time + '-' + seg_end_time)
-            fig1.tight_layout()
-            fn_out1 = '%s/%s_%s_%s_overlap.png' % (dir2name, date.replace("-", ""), seg_start_time.replace(":", ""), seg_end_time.replace(":", ""))
-            fig1.savefig(fn_out1, dpi=300)
+            # fig1.suptitle('Gridded camera image: ' + date + ' ' + seg_start_time + '-' + seg_end_time)
+            # fig1.tight_layout()
+            # fn_out1 = '%s/%s_%s_%s_overlap.png' % (dir2name, date.replace("-", ""), seg_start_time.replace(":", ""), seg_end_time.replace(":", ""))
+            # fig1.savefig(fn_out1, dpi=300)
 
 
-            fig2  = plt.figure(figsize=(12, 10))
-            ax1 = fig2.add_subplot(211, projection=cartopy_proj)
-            mesh1 = ax1.pcolormesh(lon_xx, lat_yy, flgout_agg, transform=ccrs.PlateCarree(), zorder=10)
-            g1 = ax1.gridlines(lw=0.5, color='gray', draw_labels=True, ls='-')
-            g1.xlocator = FixedLocator(np.arange(-180, 180.1, 0.2*10.**(np.round(np.log10(np.abs(xmax - xmin))))))
-            g1.ylocator = FixedLocator(np.arange(-90.0, 89.9, 0.2*10.**(np.round(np.log10(np.abs(ymax - ymin))))))
-            g1.top_labels = False
-            g1.right_labels = False
-            cbar1 = plt.colorbar(mesh1, ax=ax1, orientation='vertical', pad=0.05, aspect=50)
-            cbar1.set_label('Flag Output')
+            # fig2  = plt.figure(figsize=(12, 10))
+            # ax1 = fig2.add_subplot(211, projection=cartopy_proj)
+            # mesh1 = ax1.pcolormesh(lon_xx, lat_yy, flgout_agg, transform=ccrs.PlateCarree(), zorder=10)
+            # g1 = ax1.gridlines(lw=0.5, color='gray', draw_labels=True, ls='-')
+            # g1.xlocator = FixedLocator(np.arange(-180, 180.1, 0.2*10.**(np.round(np.log10(np.abs(xmax - xmin))))))
+            # g1.ylocator = FixedLocator(np.arange(-90.0, 89.9, 0.2*10.**(np.round(np.log10(np.abs(ymax - ymin))))))
+            # g1.top_labels = False
+            # g1.right_labels = False
+            # cbar1 = plt.colorbar(mesh1, ax=ax1, orientation='vertical', pad=0.05, aspect=50)
+            # cbar1.set_label('Flag Output')
 
-            ax2 = fig2.add_subplot(212, projection=cartopy_proj)
-            mesh2 = ax2.pcolormesh(lon_xx, lat_yy, vza_grid_agg, transform=ccrs.PlateCarree(), zorder=10)
-            g2 = ax2.gridlines(lw=0.5, color='gray', draw_labels=True, ls='-')
-            g2.xlocator = FixedLocator(np.arange(-180, 180.1, 0.2*10.**(np.round(np.log10(np.abs(xmax - xmin))))))
-            g2.ylocator = FixedLocator(np.arange(-90.0, 89.9, 0.2*10.**(np.round(np.log10(np.abs(ymax - ymin))))))
-            g2.top_labels = False
-            g2.right_labels = False
-            cbar2 = plt.colorbar(mesh2, ax=ax2, orientation='vertical', pad=0.05, aspect=50)
-            cbar2.set_label('Viewing Zenith Angle')
+            # ax2 = fig2.add_subplot(212, projection=cartopy_proj)
+            # mesh2 = ax2.pcolormesh(lon_xx, lat_yy, vza_grid_agg, transform=ccrs.PlateCarree(), zorder=10)
+            # g2 = ax2.gridlines(lw=0.5, color='gray', draw_labels=True, ls='-')
+            # g2.xlocator = FixedLocator(np.arange(-180, 180.1, 0.2*10.**(np.round(np.log10(np.abs(xmax - xmin))))))
+            # g2.ylocator = FixedLocator(np.arange(-90.0, 89.9, 0.2*10.**(np.round(np.log10(np.abs(ymax - ymin))))))
+            # g2.top_labels = False
+            # g2.right_labels = False
+            # cbar2 = plt.colorbar(mesh2, ax=ax2, orientation='vertical', pad=0.05, aspect=50)
+            # cbar2.set_label('Viewing Zenith Angle')
 
-            fig2.suptitle('Gridded camera image: ' + date + ' ' + seg_start_time + '-' + seg_end_time)
-            fn_out2 = '%s/%s_%s_%s_misc.png' % (dir2name, date.replace("-", ""), seg_start_time.replace(":", ""), seg_end_time.replace(":", ""))
-            fig2.savefig(fn_out2, dpi=300)
+            # fig2.suptitle('Gridded camera image: ' + date + ' ' + seg_start_time + '-' + seg_end_time)
+            # fn_out2 = '%s/%s_%s_%s_misc.png' % (dir2name, date.replace("-", ""), seg_start_time.replace(":", ""), seg_end_time.replace(":", ""))
+            # fig2.savefig(fn_out2, dpi=300)
 
             current_dt += datetime.timedelta(seconds=60)
+        
+        # Move all the generated netCDF files into a directory and compress that directory
+        import os
+        import glob
+        import shutil
+        import tarfile
 
+        # Create a directory to store all netCDF files for this segment
+        nc_dir = os.path.join(dir2name, 'gridded_nc_%s_%s_%s' % (date.replace("-", ""), start_time.replace(":", ""), end_time.replace(":", "")))
+        os.makedirs(nc_dir, exist_ok=True)
+
+        # Move all matching netCDF files into the directory
+        nc_files = glob.glob('%s/gridded_img_%s_*.nc' % (dir2name, date.replace("-", "")))
+        for nc_file in nc_files:
+            shutil.move(nc_file, nc_dir)
+
+        # Compress the directory into a tar.gz archive (universal)
+        archive_path = '%s/gridded_img_%s_%s_%s_all.tar.gz' % (dir2name, date.replace("-", ""), start_time.replace(":", ""), end_time.replace(":", ""))
+        with tarfile.open(archive_path, "w:gz") as tar:
+            tar.add(nc_dir, arcname=os.path.basename(nc_dir))
+
+        # Delete the directory after compression
+        shutil.rmtree(nc_dir)
+
+        print('All netCDF files compressed into %s' % (archive_path))
