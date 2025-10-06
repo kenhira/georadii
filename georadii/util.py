@@ -373,11 +373,18 @@ def get_hsr_flux(f_R0, fhsk, start_time, end_time, direction='zen', flux_source=
     with h5py.File(f_R0, 'r') as f:
         # tmhr_all = f['tmhr'][...]
         if flux_source == 'hsr':
-            rad_tot_all = f['f%s_tot' % suffix][...]
-            rad_dif_all = f['f%s_dif' % suffix][...]
-            wvl_tot = f['wvl%s_tot' % suffix][...]
-            wvl_dif = f['wvl%s_dif' % suffix][...]
-            tmhr_hsr = f['time'][...] / 3600. # convert from seconds to hours
+            if f_R0.lower()[-5] == 'v':
+                rad_tot_all = f['tot/flux'][...]
+                rad_dif_all = f['dif/flux'][...]
+                wvl_tot = f['tot/wvl'][...]
+                wvl_dif = f['dif/wvl'][...]
+                tmhr_hsr = f['tmhr'][...]
+            elif f_R0.lower()[-5] == 'r':
+                rad_tot_all = f['f%s_tot' % suffix][...]
+                rad_dif_all = f['f%s_dif' % suffix][...]
+                wvl_tot = f['wvl%s_tot' % suffix][...]
+                wvl_dif = f['wvl%s_dif' % suffix][...]
+                tmhr_hsr = f['time'][...] / 3600. # convert from seconds to hours
         else:
             msg = 'Unknown flux source: %s' % flux_source
             raise ValueError(msg)
