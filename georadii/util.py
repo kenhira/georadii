@@ -576,7 +576,7 @@ def write_surface_grid_to_nc(output_ncfile, datout, lonxx, latyy, vzagrid, vaagr
         dd_var.assignValue(date.split('-')[2])
         time_var.assignValue(tact.hour + tact.minute/60. + tact.second/3600. + tact.microsecond/(3600*1e6))
     
-def write_surface_grid_to_nc_archive(output_ncfile, datout, lonxx, latyy, vzagrid, vaagrid, szagrid, saagrid, ncount, date, tact, reflectance=None, flxdn=None, wvlc=None):
+def write_surface_grid_to_nc_archive(output_ncfile, datout, lonxx, latyy, vzagrid, vaagrid, szagrid, saagrid, ncount, date, timexy, tact0, tact1, reflectance=None, flxdn=None, wvlc=None):
     print('Writing to %s' % (output_ncfile))
     with nc.Dataset(output_ncfile, "w", format="NETCDF4") as ncfile:
         # Define dimensions
@@ -593,6 +593,7 @@ def write_surface_grid_to_nc_archive(output_ncfile, datout, lonxx, latyy, vzagri
         saa_var = ncfile.createVariable("saa", "f4", ("x1", "x2"))
         count_var = ncfile.createVariable("count", "i4", ("x1", "x2"))
         radiance_var = ncfile.createVariable("radiance", "f4", ("x1", "x2", 'ch'), fill_value=np.nan)
+        time_var = ncfile.createVariable("time", "f4", ("x1", "x2"), fill_value=np.nan)
         if reflectance is not None:
             reflectance_var = ncfile.createVariable("hdrf", "f4", ("x1", "x2", 'ch'), fill_value=np.nan)
         if flxdn is not None:
@@ -602,7 +603,8 @@ def write_surface_grid_to_nc_archive(output_ncfile, datout, lonxx, latyy, vzagri
         yyyy_var = ncfile.createVariable("year", "i4")
         mm_var = ncfile.createVariable("month", "i4")
         dd_var = ncfile.createVariable("day", "i4")
-        time_var = ncfile.createVariable("time", "f4")
+        time_st_var = ncfile.createVariable("start_time", "f4")
+        time_en_var = ncfile.createVariable("end_time", "f4")
 
         # Add attributes
         lon_var.long_name = "Longitude"
@@ -623,11 +625,11 @@ def write_surface_grid_to_nc_archive(output_ncfile, datout, lonxx, latyy, vzagri
     
         sza_var.long_name = "Solar Zenith Angle"
         sza_var.units = "degrees"
-        sza_var.description = "Solar zenith angle averaged over the flight leg."
+        sza_var.description = "Solar zenith angle averaged over the flight segment."
     
         saa_var.long_name = "Solar Azimuth Angle"
         saa_var.units = "degrees"
-        saa_var.description = "Solar azimuth angle averaged over the flight leg."
+        saa_var.description = "Solar azimuth angle averaged over the flight segment."
 
         count_var.long_name = "Count"
         count_var.units = "dimensionless"
@@ -636,6 +638,10 @@ def write_surface_grid_to_nc_archive(output_ncfile, datout, lonxx, latyy, vzagri
         radiance_var.long_name = "Radiance"
         radiance_var.units = "W/m^2/nm/sr"
         radiance_var.description = "Radiance as a function of viewing zenith and azimuth angles."
+
+        time_var.long_name = "Time"
+        time_var.units = "decimal hour"
+        time_var.description = "Time at which the camera data of the pixel was obtained. It may contain some offset due to time sync error."
 
         if reflectance is not None:
             reflectance_var.long_name = "HDRF"
@@ -650,7 +656,7 @@ def write_surface_grid_to_nc_archive(output_ncfile, datout, lonxx, latyy, vzagri
         if wvlc is not None:
             center_wvl_var.long_name = "Center wavelength"
             center_wvl_var.units = "nm"
-            center_wvl_var.description = "Center wavelength of the camera's spectral response function."
+            center_wvl_var.description = "Center wavelength of the spectral response function of the camera."
         
         yyyy_var.long_name = "Year"
         yyyy_var.units = "dimensionless"
@@ -663,13 +669,17 @@ def write_surface_grid_to_nc_archive(output_ncfile, datout, lonxx, latyy, vzagri
         dd_var.long_name = "Day"
         dd_var.units = "dimensionless"
         dd_var.description = "Day of the flight"
-        
-        time_var.long_name = "Time"
-        time_var.units = "decimal hour"
-        time_var.description = "Time at which the camera data was obtained. It may contain some offset due to time sync error."
-        
+
+        time_st_var.long_name = "Start time"
+        time_st_var.units = "decimal hour"
+        time_st_var.description = "Time at which the first camera data of this segment was obtained. It may contain some offset due to time sync error."
+
+        time_en_var.long_name = "End time"
+        time_en_var.units = "decimal hour"
+        time_en_var.description = "Time at which the last camera data of this segment was obtained. It may contain some offset due to time sync error."
+
         ncfile.title = "Gridded image"
-        ncfile.description = "Hemispherical radiance derived from a airborne downward hemispherical camera on %s at %s UTC." % (date, tact.strftime("%H%M%S"))
+        ncfile.description = "Surface-projected radiance derived from a airborne downward-looking hemispherical camera on %s from %s to %s UTC." % (date, tact0.strftime("%H%M%S"), tact1.strftime("%H%M%S"))
 
         # Assign data to variables
         lon_var[:, :] = lonxx
@@ -680,6 +690,7 @@ def write_surface_grid_to_nc_archive(output_ncfile, datout, lonxx, latyy, vzagri
         saa_var[:, :] = saagrid
         count_var[:, :] = ncount
         radiance_var[:, :, :] = datout if len(datout.shape) == 3 else datout[:, :, np.newaxis]
+        time_var[:, :] = timexy
         if reflectance is not None:
             reflectance_var[:, :, :] = reflectance if len(reflectance.shape) == 3 else reflectance[:, :, np.newaxis]
         if flxdn is not None:
@@ -689,7 +700,8 @@ def write_surface_grid_to_nc_archive(output_ncfile, datout, lonxx, latyy, vzagri
         yyyy_var.assignValue(date.split('-')[0])
         mm_var.assignValue(date.split('-')[1])
         dd_var.assignValue(date.split('-')[2])
-        time_var.assignValue(tact.hour + tact.minute/60. + tact.second/3600. + tact.microsecond/(3600*1e6))
+        time_st_var.assignValue(tact0.hour + tact0.minute/60. + tact0.second/3600. + tact0.microsecond/(3600*1e6))
+        time_en_var.assignValue(tact1.hour + tact1.minute/60. + tact1.second/3600. + tact1.microsecond/(3600*1e6))
 
         # Add global attributes
         ncfile.setncattr("file_originator_contact", "ken.hirata@colorado.edu, sebastian.schmidt@lasp.colorado.edu")
@@ -708,8 +720,8 @@ def write_surface_grid_to_nc_archive(output_ncfile, datout, lonxx, latyy, vzagri
         ncfile.setncattr("title", "ARCSIX surface-projected multi-spectral camera radiance imagery")
         ncfile.setncattr("comment", "This file contains gridded, surface-projected multi-spectral radiance with associated metadata.")
         ncfile.setncattr("format", "NetCDF4")
-        ncfile.setncattr("pi_contact", "hong.chen@lasp.colorado.edu, sebastian.schmidt@lasp.colorado.edu")
-        ncfile.setncattr("pi_name", "Hong Chen, K. Sebastian Schmidt")
+        ncfile.setncattr("pi_contact", "sebastian.schmidt@lasp.colorado.edu")
+        ncfile.setncattr("pi_name", "K. Sebastian Schmidt")
         ncfile.setncattr("processingLevel", "L1")
         ncfile.setncattr("versionid", "R0")
     
