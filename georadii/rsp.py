@@ -228,10 +228,12 @@ class RSP_arcsix:
 				nscan   = h5_file['dim_Scans'][...].shape[0]
 				nsector = h5_file['dim_Scene_Sectors'][...].shape[0]
 				nband   = h5_file['dim_Bands'][...].shape[0]
+				unvignetted_st = int(h5_file['Data']['Unvignetted_Sector_Begin'][()])
+				unvignetted_en = int(h5_file['Data']['Unvignetted_Sector_End'][()])
 				if prod == 'L1C':
 					ground_latitude  = h5_file['Geometry']['Ground_Latitude'][...][0:2, 0:nscan, 0:nsector]
 					ground_longitude = h5_file['Geometry']['Ground_Longitude'][...][0:2, 0:nscan, 0:nsector]
-					viewing_azimuth  = h5_file['Geometry']['Viewing_Azimuth'][...][0:2, 0:nscan, 0:nsector]
+					viewing_azimuth  = np.mod(h5_file['Geometry']['Viewing_Azimuth'][...][0:2, 0:nscan, 0:nsector] + 180. + 360., 360.)
 					viewing_zenith   = 180. - h5_file['Geometry']['Viewing_Zenith'][...][0:2, 0:nscan, 0:nsector]
 					platform_latitude  = h5_file['Platform']['Platform_Latitude'][...][0:nscan]
 					platform_longitude = h5_file['Platform']['Platform_Longitude'][...][0:nscan]
@@ -244,7 +246,7 @@ class RSP_arcsix:
 					vaa_arr  = np.append(vaa_arr, viewing_azimuth[0, 0:nscan, 0:nsector].flatten())
 					time_arr = np.append(time_arr, Time(time_pixel[0, 0:nscan, 0:nsector].flatten(), format='mjd').to_datetime())
 				elif prod == 'L1B':
-					viewing_azimuth  = h5_file['Geometry']['Viewing_Azimuth'][...][0:nscan, 0:nsector]
+					viewing_azimuth  = np.mod(h5_file['Geometry']['Viewing_Azimuth'][...][0:nscan, 0:nsector] + 180. + 360., 360.)
 					viewing_zenith   = 180. - h5_file['Geometry']['Viewing_Zenith'][...][0:nscan, 0:nsector]
 					platform_latitude  = h5_file['Platform']['Platform_Latitude'][...][0:nscan]
 					platform_longitude = h5_file['Platform']['Platform_Longitude'][...][0:nscan]
@@ -257,6 +259,8 @@ class RSP_arcsix:
 				intensity_1   = h5_file['Data']['Intensity_1'][...][0:nscan, 0:nsector, 0:nband]
 				intensity_2   = h5_file['Data']['Intensity_2'][...][0:nscan, 0:nsector, 0:nband]
 				intensity_avg = (intensity_1 + intensity_2) / 2.
+				intensity_avg[:, :unvignetted_st, :] = np.nan
+				intensity_avg[:, unvignetted_en:, :] = np.nan
 				radiance      = intensity_avg*solar_cons[np.newaxis, np.newaxis, 0:nband]/(np.pi*1000.)
 				plat_arr = np.append(plat_arr, np.repeat(platform_latitude[0:nscan], nsector).flatten())
 				plon_arr = np.append(plon_arr, np.repeat(platform_longitude[0:nscan], nsector).flatten())
