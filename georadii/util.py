@@ -894,17 +894,19 @@ def plot_surface_and_angular_grid_image(fn_out, lon_xx, lat_yy, ref_surface, rel
 
     fig.savefig(fn_out, dpi=300)
 
-def plot_angular_grid_rad_and_ref(fn_out, rel_azimuth, zenith, rad, ref, sza, flxdn, start_time, end_time=None, nimg=None, alt=None, meta={}):
+def plot_angular_grid_rad_and_ref(fn_out, rel_azimuth, zenith, rad, ref, start_time, end_time=None, nimg=None, alt=None, flxdn=None, sza=None, meta={}):
     meta1 = meta.get('rad', {})
     meta2 = meta.get('ref', {})
     plottyp1 = meta1.get('plottyp', None)
     vmin1 = meta1.get('vmin', None)
     vmax1 = meta1.get('vmax', None)
     cmap1 = meta1.get('cmap', 'viridis')
+    name1 = meta1.get('name', 'Radiance')
     plottyp2 = meta2.get('plottyp', None)
     vmin2 = meta2.get('vmin', None)
     vmax2 = meta2.get('vmax', None)
     cmap2 = meta2.get('cmap', 'viridis')
+    name2 = meta2.get('name', 'Reflectance')
 
     fig  = plt.figure(figsize=(8, 4.5))
 
@@ -922,11 +924,12 @@ def plot_angular_grid_rad_and_ref(fn_out, rel_azimuth, zenith, rad, ref, sza, fl
     else:
         cw = ax1.pcolormesh(rel_azimuth*np.pi/180., zenith, rad, vmin=vmin1, vmax=vmax1, cmap=cmap1)
     ax1.set_rticks([30., 60., 90.])
-    ax1.annotate('Radiance', (-0.10, 1.05), xycoords='axes fraction')
+    ax1.annotate(name1, (-0.10, 1.05), xycoords='axes fraction')
     cbar1 = fig.colorbar(cw, ax=ax1, orientation='horizontal')
-    cbar1.set_label(r'Radiance $ \rm (W/m^2/nm/sr) $')
+    cbar1.set_label(name1 if not name1.lower().startswith('radiance') else name1 + r' $ \rm (W/m^2/nm/sr) $')
 
-    ax1.annotate('Average SZA = %5.2f deg' % (sza), (0.01, -0.19), xycoords='axes fraction', fontsize=9)
+    if sza is not None:
+        ax1.annotate('Average SZA = %5.2f deg' % (sza), (0.01, -0.19), xycoords='axes fraction', fontsize=9)
 
     ax2 = fig.add_subplot(122, projection='polar')
     ax2.set_theta_direction(-1)
@@ -942,12 +945,13 @@ def plot_angular_grid_rad_and_ref(fn_out, rel_azimuth, zenith, rad, ref, sza, fl
     else:
         cw = ax2.pcolormesh(rel_azimuth*np.pi/180., zenith, ref, vmin=vmin2, vmax=vmax2, cmap=cmap2)
     ax2.set_rticks([30., 60., 90.])
-    ax2.annotate('Reflectance', (-0.10, 1.05), xycoords='axes fraction')
+    ax2.annotate(name2, (-0.10, 1.05), xycoords='axes fraction')
     if alt is not None: ax2.annotate('Alt: %7.1f m' % alt, ( 0.70, -0.07), xycoords='axes fraction', fontsize=9)
     cbar2 = fig.colorbar(cw, ax=ax2, orientation='horizontal')
-    cbar2.set_label('Reflectance')
+    cbar2.set_label(name2 if not name1.lower().startswith('radiance') else name1 + r' $ \rm (W/m^2/nm/sr) $')
 
-    ax2.annotate(r'Average Downward flux = %6.3f $ \rm (W/m^2/nm) $' % (flxdn), (0.01, -0.19), xycoords='axes fraction', fontsize=9)
+    if flxdn is not None:
+        ax2.annotate(r'Average Downward flux = %6.3f $ \rm (W/m^2/nm) $' % (flxdn), (0.01, -0.19), xycoords='axes fraction', fontsize=9)
 
     if end_time is not None:
         if nimg is not None:
@@ -1069,6 +1073,36 @@ def get_solar_angles_multi(dt, lat, lon, alt):
     azimuth = np.array(azimuth)
 
     return zenith, azimuth
+
+def leg_finder(targets_dict, consecutive=10):
+    """
+    targets_dict: dict of {array: threshold}, e.g. {'pit': (arr1, 5.), 'rol': (arr2, 5.)}
+    All criteria must be satisfied (all arrays < thresholds) for a point to be considered in a leg.
+    """
+    keys = list(targets_dict.keys())
+    arrays = [targets_dict[k][0] for k in keys]
+    thresholds = [targets_dict[k][1] for k in keys]
+    # Build mask where all criteria are met
+    mask = np.ones_like(arrays[0], dtype=bool)
+    for arr, thresh in zip(arrays, thresholds):
+        mask &= (arr < thresh)
+    group_indices = np.zeros_like(mask, dtype=int)
+    group_number = 0
+    in_group = False
+    count = 0
+    for i in range(len(mask)):
+        if mask[i]:
+            count += 1
+            if count >= consecutive:
+                if not in_group:
+                    group_number += 1
+                    in_group = True
+                group_indices[i - count + 1:i + 1] = group_number
+        else:
+            if in_group:
+                in_group = False
+            count = 0
+    return group_indices
 
 def nearest_grid_width_in_deg(deg, res_list_m):
     res_list_deg = np.array(res_list_m) / 6371000.0 * (180.0 / np.pi)
