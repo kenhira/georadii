@@ -731,6 +731,7 @@ class Camera_arcsix:
 		handle = fits.open(fits_filename)
 		fheader = handle[0].header
 		t_act, aircraft_status = self.interpolate_hsk_for_fits(fheader['DATE-OBS'])
+		handle.close()
 		return aircraft_status, t_act
 
 	# Read image file (Fits file format) and convert to radiance
@@ -756,6 +757,8 @@ class Camera_arcsix:
 		
 		fheader = handle[0].header
 		
+		handle.close()
+		
 		if mask_fits_filename is not None:
 			if not os.path.exists(mask_fits_filename):
 				message = 'Error: fits file {} not found.'.format(mask_fits_filename)
@@ -769,6 +772,8 @@ class Camera_arcsix:
 			if fliplr:
 				fmsk = np.fliplr(fmsk)
 			fheader_msk = handle_msk[0].header
+
+			handle_msk.close()
 
 			fflg[fmsk[:, :, 1] > 0.] |= 1 # aircraft body obstruction flag
 			fimg[fmsk > 0.] = np.nan
