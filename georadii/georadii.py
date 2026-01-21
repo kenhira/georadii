@@ -304,7 +304,7 @@ class Georadii:
 			scatdat_valid = np.ones_like(scatdat_raa, dtype=bool) & (scatdat_vza < 90.)
 		else:
 			scatdat_valid = scatdat_valid & (scatdat_vza < 90.)
-		scatdat_valid = scatdat_valid & (~np.isnan(scatdat_data).any(axis=-1) if len(scatdat_data.shape) > 2 else ~np.isnan(scatdat_data))
+		scatdat_valid = scatdat_valid & (~np.isnan(scatdat_data).all(axis=-1) if len(scatdat_data.shape) > 2 else ~np.isnan(scatdat_data))
 		
 		scatdat_raa = (scatdat_raa + 360.) % 360.
 		scatdat_raa[scatdat_raa > grid_meta['raa']['max']] -= 360. # change the range to grid_meta['raa']['min'] ~ grid_meta['raa']['max']
@@ -346,7 +346,7 @@ class Georadii:
 			scatdat_valid = np.ones_like(scatdat_raa, dtype=bool) & (scatdat_vza < 90.)
 		else:
 			scatdat_valid = scatdat_valid & (scatdat_vza < 90.)
-		scatdat_valid = scatdat_valid & (~np.isnan(scatdat_data).any(axis=-1) if len(scatdat_data.shape) > 2 else ~np.isnan(scatdat_data))
+		scatdat_valid = scatdat_valid & (~np.isnan(scatdat_data).all(axis=-1) if len(scatdat_data.shape) > 2 else ~np.isnan(scatdat_data))
 
 		scatdat_raa = (scatdat_raa + 360.) % 360.
 		scatdat_raa[scatdat_raa > grid_meta['raa']['max']] -= 360. # change the range to grid_meta['raa']['min'] ~ grid_meta['raa']['max']
@@ -717,9 +717,10 @@ class Georadii:
 
 		def load_image(self, img, calc_angle='none'):
 			self.img = img
-			self.valid_domain = self.valid_domain & (~np.isnan(self.img['data'][:, :, 0]))
-			self.valid_domain = self.valid_domain & (~np.isnan(self.img['data'][:, :, 1]))
-			self.valid_domain = self.valid_domain & (~np.isnan(self.img['data'][:, :, 2]))
+			# self.valid_domain = self.valid_domain & (~np.isnan(self.img['data'][:, :, 0]))
+			# self.valid_domain = self.valid_domain & (~np.isnan(self.img['data'][:, :, 1]))
+			# self.valid_domain = self.valid_domain & (~np.isnan(self.img['data'][:, :, 2]))
+			self.valid_domain = self.valid_domain & (~np.isnan(self.img['data'][:, :, :].all(axis=2)))
 			if calc_angle == 'fov' or calc_angle == 'all':
 				self.img2d_zero = np.zeros_like(self.img['data'][:, :, 0])
 				self.xa, self.ya = np.arange(self.img['data'].shape[1]), np.arange(self.img['data'].shape[0])
@@ -731,8 +732,9 @@ class Georadii:
 					self.r_incl = np.int_((-self.degperpix + np.sqrt(self.degperpix**2. + 4.*self.degperpix2*self.zenith_limit))/(2.*self.degperpix2))
 				self.r_2    = (self.xx - self.cam_meta['centerpix'][0])*(self.xx - self.cam_meta['centerpix'][0]) + (self.yy - self.cam_meta['centerpix'][1])*(self.yy - self.cam_meta['centerpix'][1])
 				self.r_     = np.sqrt(self.r_2)
-				self.valid_domain = self.valid_domain & (self.r_ < self.r_incl) & (~np.isnan(self.img['data'][:, :, 0]))
-				self.valid_domain = self.valid_domain & (~np.isnan(self.img['data'][:, :, 1])) & (~np.isnan(self.img['data'][:, :, 2]))
+				# self.valid_domain = self.valid_domain & (self.r_ < self.r_incl) & (~np.isnan(self.img['data'][:, :, 0]))
+				# self.valid_domain = self.valid_domain & (~np.isnan(self.img['data'][:, :, 1])) & (~np.isnan(self.img['data'][:, :, 2]))
+				self.valid_domain = self.valid_domain & (self.r_ < self.r_incl) & (~np.isnan(self.img['data'][:, :, :].all(axis=2)))
 				if calc_angle == 'all':
 					self.zeniths  = np.ma.masked_where(self.r_ > self.r_incl, self.img2d_zero)
 					self.azimuths = np.ma.masked_where(self.r_ > self.r_incl, self.img2d_zero)

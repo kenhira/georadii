@@ -440,6 +440,9 @@ class Camera_arcsix:
 								'geom_zen'  :   self.zeniths,
 								'geom_azi'  :   self.azimuths,}
 		
+		self.radcorr_filename = None
+		self.radcorr_factor = None
+		
 	def date_check(self, date):
 		if date not in self._flights:
 			message = 'Error [Meta_arcsix]: date %s is not in the list of flight dates. ' \
@@ -706,9 +709,11 @@ class Camera_arcsix:
 		fits_allfiles = sorted(fits_allfiles)
 		return fits_allfiles
 	
-	def rad_and_geom_from_fits(self, fits_filename, flipud=None, fliplr=None, mask_fits_filename=None, mask_aircraft_shadow=True, saturation_val=None, t_mod=0., stat_mod={}):
+	def rad_and_geom_from_fits(self, fits_filename, flipud=None, fliplr=None, mask_fits_filename=None, mask_aircraft_shadow=True, \
+								saturation_val=None, t_mod=0., stat_mod={}):
 		image, header = self.radiance_from_fits(fits_filename, flipud=flipud, fliplr=fliplr, mask_fits_filename=mask_fits_filename, saturation_val=saturation_val)
 		t_act, aircraft_status = self.interpolate_hsk_for_fits(header['DATE-OBS'], t_mod=t_mod)
+		image['data'] = self.radiance_correction(image['data'], t_act)
 		if len(stat_mod) > 0:
 			for key in stat_mod:
 				if key in aircraft_status:
@@ -827,6 +832,27 @@ class Camera_arcsix:
 						% (radcal_dict['type']['input'].lower()))
 		img['wavelength'] = np.array([wvlc_list['red'], wvlc_list['green'], wvlc_list['blue']])
 		return img
+	
+	def radiance_correction(self, img_data, t_act):
+		if self.radcorr_filename is not None:
+			if self.radcorr_factor is None:
+				if not os.path.exists(self.radcorr_filename):
+					message = 'Error: radiance correction file {} not found.'.format(self.radcorr_filename)
+					raise OSError(message)
+				rcf = h5py.File(self.radcorr_filename, 'r')
+				self.radcorr_factor = {}
+				self.radcorr_factor['time']   = rcf['time'][...]
+				self.radcorr_factor['factor'] = rcf['weighted_mean_ratio'][...]
+				rcf.close()
+			tt_act = t_act.hour + t_act.minute/60. + t_act.second/3600.
+			corr_r = np.interp(tt_act, self.radcorr_factor['time'], self.radcorr_factor['factor'][:, 0])
+			corr_g = np.interp(tt_act, self.radcorr_factor['time'], self.radcorr_factor['factor'][:, 1])
+			corr_b = np.interp(tt_act, self.radcorr_factor['time'], self.radcorr_factor['factor'][:, 2])
+			print('Applying radiance correction from {}'.format(self.radcorr_filename) + 'vals: R=%f, G=%f, B=%f' % (corr_r, corr_g, corr_b))
+			img_data[:, :, 0] = img_data[:, :, 0] / corr_r
+			img_data[:, :, 1] = img_data[:, :, 1] / corr_g
+			img_data[:, :, 2] = img_data[:, :, 2] / corr_b
+		return img_data
 	
 	def calc_viewing_geometry(self, rol, pit, hed): # in degrees
 		R_n2c = self.R_NED2Cam(rol*np.pi/180., pit*np.pi/180., hed*np.pi/180.)
