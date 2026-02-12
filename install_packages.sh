@@ -36,4 +36,7 @@ python -m pip install pysolar
 echo "Let's install Open CV (pip)..."
 python -m pip install opencv-python
 
+echo "Let's install EarthAccess (pip)..."
+python -m pip install earthaccess
+
 echo "Required packages have been installed."
