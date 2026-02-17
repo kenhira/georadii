@@ -7,51 +7,39 @@ import matplotlib.cm as cm
 import numpy as np
 import cartopy.crs as ccrs
 from matplotlib.ticker import FixedLocator
-from georadii.util import read_hsk_arcsix
+from georadii.util import read_hsk_arcsix, leg_finder, get_hsr_flux
 from georadii.georadii import Georadii
-
-
-def leg_finder(targets_dict, consecutive=10):
-    """
-    targets_dict: dict of {array: threshold}, e.g. {'pit': (arr1, 5.), 'rol': (arr2, 5.)}
-    All criteria must be satisfied (all arrays < thresholds) for a point to be considered in a leg.
-    """
-    keys = list(targets_dict.keys())
-    arrays = [targets_dict[k][0] for k in keys]
-    thresholds = [targets_dict[k][1] for k in keys]
-    # Build mask where all criteria are met
-    mask = np.ones_like(arrays[0], dtype=bool)
-    for arr, thresh in zip(arrays, thresholds):
-        mask &= (arr < thresh)
-    group_indices = np.zeros_like(mask, dtype=int)
-    group_number = 0
-    in_group = False
-    count = 0
-    for i in range(len(mask)):
-        if mask[i]:
-            count += 1
-            if count >= consecutive:
-                if not in_group:
-                    group_number += 1
-                    in_group = True
-                group_indices[i - count + 1:i + 1] = group_number
-        else:
-            if in_group:
-                in_group = False
-            count = 0
-    return group_indices
 
 if __name__ == "__main__":
 
+    # date = '2024-05-28'
+    # date = '2024-05-30'
+    # date = '2024-05-31'
+    # date = '2024-06-03'
+    # date = '2024-06-05'
+    # date = '2024-06-06'
+    # date = '2024-06-07'
+    # date = '2024-06-10'
+    date = '2024-06-11'
+    # date = '2024-06-13'
+    # date = '2024-07-25'
     # date = '2024-07-29'
-    date = '2024-07-30'
+    # date = '2024-07-30'
+    # date = '2024-08-01'
+    # date = '2024-08-02'
+    # date = '2024-08-07'
+    # date = '2024-08-08'
+    # date = '2024-08-09'
+    # date = '2024-08-15'
 
+    start_time = '10:00:00'
+    end_time   = '20:00:00'
     # start_time = '13:52:00'
     # end_time   = '17:12:00'
-    start_time = '11:00:00'
+    # start_time = '11:00:00'
     # start_time = '12:25:00'
     # end_time   = '17:11:30'
-    end_time   = '18:00:00'
+    # end_time   = '18:00:00'
 
     # nearby_toggle = True 
     nearby_toggle = False
@@ -64,6 +52,20 @@ if __name__ == "__main__":
     # hsk_filename = '%s/Downloads/ARCSIX_HSK/ARCSIX-HSK_P3B_20240729_v0.h5' % (os.getenv('HOME'))
     hsk_filename = '%s/Downloads/ARCSIX_HSK/ARCSIX-HSK_P3B_%s_v0.h5' % (os.getenv('HOME'), date.replace('-', ''))
     hsk_data = read_hsk_arcsix(hsk_filename)
+
+    use_hsr = True
+
+    dirdrive = '/Volumes/r2/ssfr'
+    hsr_filename = '%s/SSFR_R1_test_files/ARCSIX-HSR1_P3B_%s_v2.h5' % (dirdrive, date.replace('-', ''))
+
+    if use_hsr:
+        fluxtot, fluxdif, wvltot, wvldif, tmhrhsr = get_hsr_flux(
+            hsr_filename, hsk_filename, start_time, end_time, instrument='cam', method='all', spec_resp_txt=None
+            )
+        wvl = 550.  # nm
+        dif_ratio_raw = fluxdif[:, np.argmin(np.abs(wvltot - wvl))] / fluxtot[:, np.argmin(np.abs(wvltot - wvl))]
+        dif_ratio_interp = np.interp(hsk_data['hrs'], tmhrhsr, dif_ratio_raw)
+
 
     tmhr = hsk_data['hrs'] # decimal hours
     start_hour, start_minute, start_second = map(int, start_time.split(':'))
@@ -80,12 +82,20 @@ if __name__ == "__main__":
     flight_hed = hsk_data['hed'][time_mask]
 
     sqrt_pit_rol = np.sqrt(flight_pit**2 + flight_rol**2)
-    ascend_rate = np.gradient(flight_alt) / np.gradient(flight_tmhr * 3600.)
+    # Compute average ascent rate over 30 seconds
+    dt_seconds = np.gradient(flight_tmhr * 3600.)
+    window_size = max(1, int(30 / np.median(dt_seconds)))  # number of points in 30 seconds, at least 1
+    ascend_rate_raw = np.gradient(flight_alt) / dt_seconds
+    ascend_rate = np.convolve(ascend_rate_raw, np.ones(window_size)/window_size, mode='same')
 
     leg_finder_targets = {
         'tilt': (sqrt_pit_rol, 5.),
-        # 'ascend': (np.abs(ascend_rate), 3.),
+        'ascend': (np.abs(ascend_rate), 7.),
     }
+
+    if use_hsr:
+        leg_finder_targets['dif_ratio'] = (dif_ratio_interp, 0.45)
+
 
     in_leg = leg_finder(leg_finder_targets, consecutive=15)
 
