@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 from matplotlib.ticker import FixedLocator
 from scipy.interpolate import griddata
+from scipy.interpolate import LinearNDInterpolator
 import pysolar
 
 # Read housekeeping file (HDF5 binary data format)
@@ -976,7 +977,7 @@ def makedir_numbered(dirname):
     os.makedirs(dir2name)
     return dir2name
 
-def calc_bhr_from_hdrf(zen2d, razi2d, hdrf_2d, nan_treatment='remove'):
+def calc_bhr_from_hdrf(zen2d, razi2d, hdrf_2d, nan_treatment='remove', vzamax=65.):
     hdrf2d = np.copy(hdrf_2d)
     zen_rad = np.deg2rad(zen2d)
     razi_rad = np.deg2rad(razi2d)
@@ -1004,6 +1005,20 @@ def calc_bhr_from_hdrf(zen2d, razi2d, hdrf_2d, nan_treatment='remove'):
         integrand2 = sin_zen*cos_zen*dzen*drazi
         # integrand2 = cos_zen*dmu*drazi
         bhr = np.sum(integrand)/np.sum(integrand2)
+    elif nan_treatment == 'interp_and_remove':
+        valid_near_nadir = ~np.isnan(hdrf2d) & (zen2d <= vzamax)
+        if not np.any(valid_near_nadir):
+            bhr = np.nan
+        else:
+            points = (zen2d[valid_near_nadir], razi2d[valid_near_nadir])
+            values = hdrf2d[valid_near_nadir]
+            hdrf2d_interp = LinearNDInterpolator(points, values, fill_value=0)
+            hdrf2d_filled = np.where(np.isnan(hdrf2d) & (zen2d <= vzamax), hdrf2d_interp(zen2d, razi2d), hdrf2d)
+            integrand  = hdrf2d_filled*sin_zen*cos_zen*dzen*drazi
+            # integrand = hdrf2d_filled*cos_zen*dmu*drazi
+            integrand2 = sin_zen*cos_zen*dzen*drazi
+            # integrand2 = cos_zen*dmu*drazi
+            bhr = np.sum(integrand[~np.isnan(hdrf2d_filled)])/np.sum(integrand2[~np.isnan(hdrf2d_filled)])
     return bhr
 
 def calc_flx_from_rad(zen2d, razi2d, rad_2d, nan_treatment='remove'):
