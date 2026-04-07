@@ -845,9 +845,14 @@ class Camera_arcsix:
 				self.radcorr_factor['factor'] = rcf['weighted_mean_ratio'][...]
 				rcf.close()
 			tt_act = t_act.hour + t_act.minute/60. + t_act.second/3600.
-			corr_r = np.interp(tt_act, self.radcorr_factor['time'], self.radcorr_factor['factor'][:, 0])
-			corr_g = np.interp(tt_act, self.radcorr_factor['time'], self.radcorr_factor['factor'][:, 1])
-			corr_b = np.interp(tt_act, self.radcorr_factor['time'], self.radcorr_factor['factor'][:, 2])
+			# corr_r = np.interp(tt_act, self.radcorr_factor['time'], self.radcorr_factor['factor'][:, 0])
+			# corr_g = np.interp(tt_act, self.radcorr_factor['time'], self.radcorr_factor['factor'][:, 1])
+			# corr_b = np.interp(tt_act, self.radcorr_factor['time'], self.radcorr_factor['factor'][:, 2])
+			time_window = 2. / 60. # minutes time window for averaging
+			time_mask = (self.radcorr_factor['time'] >= tt_act - time_window) & (self.radcorr_factor['time'] <= tt_act + time_window)
+			corr_r = np.nanmean(self.radcorr_factor['factor'][time_mask, 0])
+			corr_g = np.nanmean(self.radcorr_factor['factor'][time_mask, 1])
+			corr_b = np.nanmean(self.radcorr_factor['factor'][time_mask, 2])
 			print('Applying radiance correction from {}'.format(self.radcorr_filename) + 'vals: R=%f, G=%f, B=%f' % (corr_r, corr_g, corr_b))
 			img_data[:, :, 0] = img_data[:, :, 0] / corr_r
 			img_data[:, :, 1] = img_data[:, :, 1] / corr_g
