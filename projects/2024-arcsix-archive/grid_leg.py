@@ -1089,52 +1089,75 @@ if __name__ == "__main__":
 
     date     = '2024-08-15'
     st_en_times = [
-        ['11:10:49', '11:37:53'],
-        ['11:38:47', '11:50:36'],
-        ['11:50:51', '11:52:04'],
-        ['11:52:11', '12:17:35'],
-        ['12:18:34', '12:20:47'],
-        ['12:20:59', '12:33:13'],
-        ['12:34:54', '12:35:13'],
-        ['12:36:31', '13:06:54'],
-        ['13:07:51', '13:22:25'],
-        ['13:23:30', '13:24:25'],
-        ['13:30:23', '13:37:02'],
-        ['13:37:51', '13:38:45'],
-        ['13:41:27', '13:42:43'],
-        ['13:45:04', '13:47:33'],
-        ['13:49:39', '13:52:36'],
-        ['13:54:48', '13:55:09'],
-        ['13:55:22', '13:56:55'],
-        ['13:58:21', '13:59:30'],
-        ['14:01:00', '14:01:57'],
-        ['14:02:06', '14:03:51'],
-        ['14:06:45', '14:07:17'],
-        ['14:07:51', '14:22:21'],
-        ['14:22:23', '14:23:49'],
-        ['14:31:19', '14:49:18'],
-        ['14:50:42', '14:51:49'],
-        ['14:56:36', '15:09:52'],
-        ['15:13:21', '15:17:18'],
-        ['15:21:01', '15:25:30'],
-        ['15:28:06', '15:30:25'],
-        ['15:31:40', '15:31:59'],
-        ['15:33:26', '15:34:18'],
-        ['15:34:46', '15:38:05'],
-        ['15:38:33', '15:39:34'],
-        ['15:40:03', '15:50:00'],
-        ['15:50:15', '15:52:19'],
-        ['15:52:23', '15:53:31'],
-        ['15:53:39', '16:11:33'],
-        ['16:11:35', '16:12:40'],
-        ['16:13:11', '17:49:09'],
-        ['17:49:37', '18:04:39'],
-        ['18:06:52', '18:08:10'],
-        ['18:11:17', '18:12:52'],
-        ['18:13:02', '18:13:18'],
-        ['18:13:21', '18:15:59'],
-        ['18:18:08', '18:25:15'],
+        # ['11:10:49', '11:37:53'],
+        # ['11:38:47', '11:50:36'],
+        # ['11:50:51', '11:52:04'],
+        # ['11:52:11', '12:17:35'],
+        # ['12:18:34', '12:20:47'],
+        # ['12:20:59', '12:33:13'],
+        # ['12:34:54', '12:35:13'],
+        # ['12:36:31', '13:06:54'],
+        # ['13:07:51', '13:22:25'],
+        # ['13:23:30', '13:24:25'],
+        # ['13:30:23', '13:37:02'],
+        # ['13:37:51', '13:38:45'],
+        # ['13:41:27', '13:42:43'],
+        # ['13:45:04', '13:47:33'],
+        # ['13:49:39', '13:52:36'],
+        # ['13:54:48', '13:55:09'],
+        # ['13:55:22', '13:56:55'],
+        # ['13:58:21', '13:59:30'],
+        # ['14:01:00', '14:01:57'],
+        # ['14:02:06', '14:03:51'],
+        # ['14:06:45', '14:07:17'],
+        # ['14:07:51', '14:22:21'],
+        # ['14:22:23', '14:23:49'],
+        # ['14:31:19', '14:49:18'],
+        # ['14:50:42', '14:51:49'],
+        # ['14:56:36', '15:09:52'],
+        # ['15:13:21', '15:17:18'],
+        # ['15:21:01', '15:25:30'],
+        # ['15:28:06', '15:30:25'],
+        # ['15:31:40', '15:31:59'],
+        # ['15:33:26', '15:34:18'],
+        # ['15:34:46', '15:38:05'],
+        # ['15:38:33', '15:39:34'],
+        # ['15:40:03', '15:50:00'],
+        # ['15:50:15', '15:52:19'],
+        # ['15:52:23', '15:53:31'],
+        # ['15:53:39', '16:11:33'],
+        # ['16:11:35', '16:12:40'],
+        # ['16:13:11', '17:49:09'],
+        # ['17:49:37', '18:04:39'],
+        # ['18:06:52', '18:08:10'],
+        # ['18:11:17', '18:12:52'],
+        # ['18:13:02', '18:13:18'],
+        # ['18:13:21', '18:15:59'],
+        # ['18:18:08', '18:25:15'],
+        ['14:02:07', '14:05:47'], # EXP: AVIRIS melt pond work
     ]
+
+    # dt_s = 60. # s
+    dt_s = 30. # s
+    # dt_s = 20. # s
+    # dt_s = 1. # s
+    # dt_s = 0.5 # s
+
+    # nintv = 4
+    nintv = 2
+    # nintv = 1
+
+    # gridy_maxdeg = 60.
+    gridy_maxdeg = 70.
+    # gridy_ngrid = 250.
+    gridy_ngrid = 400.
+    # res_m_list = [ 0.04, 0.05, 0.08, 0.1, 0.125, 0.16, 0.2, 0.4, 0.5, 0.8, 
+    #                 1., 1.25, 1.6, 2., 4., 5., 8., 10., 12.5, 16., 20., 40., 50., 80., 
+    #                 100., 125., 160., 200., 400., 500., 800., 1000.,]
+    res_m_list = [0.1, 1., 1.6, 2., 4., 5., 10.]
+
+    # fov_camdata = 66.
+    fov_camdata = 60.
 
     # Make the directory to store the output pngs
     dirname = 'out_gridding'
@@ -1161,18 +1184,29 @@ if __name__ == "__main__":
         start_time = st_en_time[0]
         end_time   = st_en_time[1]
 
-        # Loop over 60-second segments within the time period
+        # Loop over segments within the time period
         start_dt = datetime.datetime.strptime(start_time, "%H:%M:%S")
         end_dt = datetime.datetime.strptime(end_time, "%H:%M:%S")
         current_dt = start_dt
 
+        seg_start_time_prev = ""
+        seg_end_time_prev = ""
         while current_dt < end_dt:
-            duration = np.minimum(60, (end_dt - current_dt).total_seconds())
-            if duration < 5:
+            duration = np.minimum(dt_s, (end_dt - current_dt).total_seconds())
+            if duration < np.minimum(dt_s, 5):
                 break
             seg_start_time = current_dt.strftime("%H:%M:%S")
             seg_end_time = (current_dt + datetime.timedelta(seconds=duration)).strftime("%H:%M:%S")
+            if seg_start_time == seg_start_time_prev and seg_end_time == seg_end_time_prev:
+                continue
             print("Processing segment: %s to %s" % (seg_start_time, seg_end_time))
+            seg_start_time_prev = seg_start_time
+            seg_end_time_prev = seg_end_time
+
+            # Retrieve all the image files for the specified time period
+            # fits_list = camtool.load_fits(seg_start_time, seg_end_time, location='workstation')[::nintv]
+            fits_list = camtool.load_fits(seg_start_time, seg_end_time, location='ARCSIX2KSS')[::nintv]
+            # fits_list = camtool.load_fits(seg_start_time, seg_end_time, location='argus')[::nintv]
 
             # Obtain the meta data of the leg
             leg_bearing, dist_2x = calc_bearing( camtool.interpolate_hsk_for_timestr(seg_start_time)['lon'], 
@@ -1188,14 +1222,14 @@ if __name__ == "__main__":
             ycenter = camtool.interpolate_hsk_for_timestr_mid(seg_start_time, seg_end_time)['lat']
 
             inclination = leg_bearing - 90.
-            dist_y = leg_alt*np.tan(np.deg2rad(65. - 5.))
+            dist_y = leg_alt*np.tan(np.deg2rad(gridy_maxdeg))
             dist_ydeg = np.rad2deg(dist_y/6371000.0)
             incr_deg_approx = dist_ydeg/250.
-            incr_deg, res_m = nearest_grid_width_in_deg(incr_deg_approx,
-                [ 0.04, 0.05, 0.08, 0.1, 0.125, 0.16, 0.2, 0.4, 0.5, 0.8, 
-                    1., 1.25, 1.6, 2., 4., 5., 8., 10., 12.5, 16., 20., 40., 50., 80., 
-                    100., 125., 160., 200., 400., 500., 800., 1000.,])
-            dist_xdeg = np.rad2deg(0.5*dist_2x/6371000.0) + 0.5*dist_ydeg
+            incr_deg, res_m = nearest_grid_width_in_deg(incr_deg_approx, res_m_list)
+                # [ 0.04, 0.05, 0.08, 0.1, 0.125, 0.16, 0.2, 0.4, 0.5, 0.8, 
+                #     1., 1.25, 1.6, 2., 4., 5., 8., 10., 12.5, 16., 20., 40., 50., 80., 
+                #     100., 125., 160., 200., 400., 500., 800., 1000.,])
+            dist_xdeg = np.rad2deg(0.5*dist_2x/6371000.0) + 1.5*dist_ydeg
             gridding_meta = {   'transform' : { 'type' :  'rotate',
                                 'center' :  (xcenter, ycenter),
                                 'inclination'   : inclination},
@@ -1209,11 +1243,6 @@ if __name__ == "__main__":
             #     'x'         : { 'incr'   :   100.},
             #     'y'         : { 'incr'   :   100.}}
             lon_xx, lat_yy = Georadii.grid_define(gridding_meta)
-
-            # Retrieve all the image files for the specified time period
-            # fits_list = camtool.load_fits(seg_start_time, seg_end_time, location='workstation')[::1]
-            fits_list = camtool.load_fits(seg_start_time, seg_end_time, location='ARCSIX2KSS')[::1]
-            # fits_list = camtool.load_fits(seg_start_time, seg_end_time, location='argus')[::1]
 
             nearest_fits = np.zeros_like(lon_xx, dtype=np.int32)
             imgout_agg = np.zeros((lon_xx.shape[0], lon_xx.shape[1], 3))
@@ -1257,7 +1286,7 @@ if __name__ == "__main__":
                 rad_geom, t_act = camtool.rad_and_geom_from_fits(fits_file, mask_aircraft_shadow=True)
 
                 # Create the Georadii object (automatic georeferencing)
-                img_meta = {'fov'	:	66.0,}
+                img_meta = {'fov'	:	fov_camdata,}
                 # img_meta = {}
                 cam1 = Georadii(rad_geom, input_type='camera', input_coordinate='geometry', input_meta=img_meta)
                 
@@ -1282,7 +1311,7 @@ if __name__ == "__main__":
             
             if np.all(ncount_agg == 0):
                 print("No valid data in this segment, skipping...")
-                current_dt += datetime.timedelta(seconds=60)
+                current_dt += datetime.timedelta(seconds=dt_s)
                 continue
 
 
@@ -1588,7 +1617,7 @@ if __name__ == "__main__":
             # fn_out2 = '%s/%s_%s_%s_misc.png' % (dir2name, date.replace("-", ""), seg_start_time.replace(":", ""), seg_end_time.replace(":", ""))
             # fig2.savefig(fn_out2, dpi=300)
 
-            current_dt += datetime.timedelta(seconds=60)
+            current_dt += datetime.timedelta(seconds=dt_s)
         
         # Move all the generated netCDF files into a directory and compress that directory
         import os
